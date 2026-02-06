@@ -40,7 +40,7 @@ body { font-family: 'Vazirmatn', sans-serif; background-color: var(--bg-primary)
 .recording-pulse { animation: pulse 1s infinite; color: red; }
 @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-#chat-bg { position: absolute; inset: 0; z-index: 0; background-image: url('https://web.telegram.org/img/bg_0.png'); background-size: cover; opacity: 0.1; pointer-events: none; }
+#chat-bg { position: absolute; inset: 0; z-index: 0; background-image: url('assets/img/chat-bg.png'); background-size: cover; opacity: 0.1; pointer-events: none; }
 .light-mode #chat-bg { opacity: 0.05; filter: invert(1); } 
 #msgBox { position: relative; z-index: 1; }
 

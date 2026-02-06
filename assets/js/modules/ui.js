@@ -1,15 +1,11 @@
 import { state } from './state.js';
 import { loadContacts } from './auth.js'; 
 
-// --- مدیریت مودال‌ها ---
 export function openModal(id) {
     let el = document.getElementById(id);
     if (el) {
         el.classList.remove('hidden');
-        if (id == 'contactModal') {
-            // اگر تابع loadContacts لود شده باشد صدا می‌زند
-            if(typeof loadContacts === 'function') loadContacts();
-        }
+        if (id == 'contactModal') loadContacts();
     }
 }
 
@@ -21,7 +17,7 @@ export function closeModal(id) {
 export function openCreateModal(type) {
     state.createType = type;
     let title = document.getElementById('createTitle');
-    if(title) title.innerText = (type == 'channel' ? 'New Channel' : 'New Group');
+    if(title) title.innerText = (type == 'channel' ? 'کانال جدید' : 'گروه جدید');
     openModal('createModal');
 }
 
@@ -29,7 +25,6 @@ export function openSettings() {
     openModal('settingsModal');
 }
 
-// --- تنظیمات ظاهری ---
 export function toggleTheme() {
     document.body.classList.toggle('light-mode');
     localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
@@ -41,15 +36,10 @@ export function toggleLang() {
     location.reload();
 }
 
-export function toggleEditMode() {
-    alert('Edit mode coming soon');
-}
-
-// --- اتصال به Window (حیاتی برای دکمه‌های HTML) ---
+// اتصال حیاتی به Window
 window.openModal = openModal;
 window.closeModal = closeModal;
 window.openCreateModal = openCreateModal;
 window.openSettings = openSettings;
 window.toggleTheme = toggleTheme;
 window.toggleLang = toggleLang;
-window.toggleEditMode = toggleEditMode;

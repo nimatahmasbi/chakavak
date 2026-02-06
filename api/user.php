@@ -6,7 +6,7 @@ if ($act == 'get_contacts') {
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     // اصلاح مسیر آواتار
     foreach($users as &$u) {
-        if($u['avatar'] == 'default' || empty($u['avatar'])) $u['avatar'] = 'assets/img/default.png';
+        if($u['avatar'] == 'default' || empty($u['avatar'])) $u['avatar'] = 'assets/img/chakavak.png';
     }
     echo json_encode(['status'=>'ok', 'list'=>$users]);
 }
@@ -19,7 +19,7 @@ elseif ($act == 'get_user_info') {
     $data = $u->fetch(PDO::FETCH_ASSOC);
     
     if(!$data) { echo json_encode(['status'=>'error', 'msg'=>'User not found']); exit; }
-    if($data['avatar'] == 'default' || empty($data['avatar'])) $data['avatar'] = 'assets/img/default.png';
+    if($data['avatar'] == 'default' || empty($data['avatar'])) $data['avatar'] = 'assets/img/chakavak.png';
     
     echo json_encode(['status'=>'ok', 'data'=>$data]);
 }
