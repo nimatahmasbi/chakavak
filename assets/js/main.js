@@ -1,28 +1,33 @@
 import './modules/ui.js';
 import './modules/auth.js';
 import './modules/group.js';
-import './modules/sender.js'; // *** این خط اضافه شود ***
+import './modules/sender.js';
 import './modules/media.js';
-import './modules/security.js'; // *** اضافه شد ***
+import './modules/security.js';
+import './modules/notify.js'; // *** اضافه شد ***
 import { loadChats, loadMsg, sendText } from './modules/chat.js';
 import { state } from './modules/state.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    // PWA
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
+    // PWA Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('SW Registered'))
+        .catch(err => console.error('SW Fail', err));
+    }
 
-    // تنظیمات
+    // Init
     if (typeof applyLang === "function") applyLang();
     
     if (localStorage.getItem('theme') !== 'light') { 
         document.body.classList.remove('light-mode'); 
-        let sw = document.getElementById('themeSwitch');
-        if(sw) sw.checked = true; 
+        let sw = document.getElementById('themeSwitch'); 
+        if (sw) sw.checked = true; 
     } else {
         document.body.classList.add('light-mode');
     }
 
-    // بستن منوها
+    // Event Listeners
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#attachMenu') && !e.target.closest('button[onclick*="attachMenu"]')) {
             const m = document.getElementById('attachMenu'); if(m) m.style.display = 'none';
@@ -34,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mm && mm.style.display == 'block' && !e.target.closest('.context-menu')) mm.style.display = 'none';
     });
 
-    // مدیریت ورودی
+    // Input Resize
     const input = document.getElementById('msgInput');
     if (input) {
         input.addEventListener('keydown', (e) => {
@@ -50,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // شروع
+    // Start App
     loadChats();
     setInterval(() => { if (state.currChat) loadMsg(false); else loadChats(); }, 3000);
 });
