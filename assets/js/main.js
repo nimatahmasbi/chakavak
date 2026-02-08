@@ -1,26 +1,27 @@
 import './modules/ui.js';
 import './modules/auth.js';
 import './modules/group.js';
-import './modules/sender.js'; // *** این خط را اضافه کنید ***
+import './modules/sender.js'; // *** این خط اضافه شود ***
 import './modules/media.js';
 import { loadChats, loadMsg, sendText } from './modules/chat.js';
 import { state } from './modules/state.js';
 
-// بقیه کدها بدون تغییر...
 document.addEventListener('DOMContentLoaded', () => {
     // PWA
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
 
-    // Init
+    // تنظیمات
     if (typeof applyLang === "function") applyLang();
+    
     if (localStorage.getItem('theme') !== 'light') { 
         document.body.classList.remove('light-mode'); 
-        if(document.getElementById('themeSwitch')) document.getElementById('themeSwitch').checked = true; 
+        let sw = document.getElementById('themeSwitch');
+        if(sw) sw.checked = true; 
     } else {
         document.body.classList.add('light-mode');
     }
 
-    // Click Listeners
+    // بستن منوها
     document.addEventListener('click', (e) => {
         if (!e.target.closest('#attachMenu') && !e.target.closest('button[onclick*="attachMenu"]')) {
             const m = document.getElementById('attachMenu'); if(m) m.style.display = 'none';
@@ -32,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mm && mm.style.display == 'block' && !e.target.closest('.context-menu')) mm.style.display = 'none';
     });
 
-    // Input Handling
+    // مدیریت ورودی
     const input = document.getElementById('msgInput');
     if (input) {
         input.addEventListener('keydown', (e) => {
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Start
+    // شروع
     loadChats();
     setInterval(() => { if (state.currChat) loadMsg(false); else loadChats(); }, 3000);
 });

@@ -1,63 +1,59 @@
-<?php require 'config.php'; if (!isset($_SESSION['admin'])) { header("Location: login.php"); exit; }
-if (isset($_GET['logout'])) { session_destroy(); header("Location: login.php"); exit; } ?>
-<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>پنل مدیریت</title><script src="../libs/tailwind.js"></script><link href="../libs/vazir/vazirmatn.css" rel="stylesheet"><script src="../libs/crypto-js.js"></script><style>body{font-family:'Vazirmatn'}.scroll-hide::-webkit-scrollbar{display:none}.chat-bubble{max-width:75%;padding:8px 12px;border-radius:15px;margin-bottom:5px;font-size:14px;position:relative}.chat-me{background:#dcf8c6;margin-right:auto;border-top-left-radius:0}.chat-other{background:#fff;margin-left:auto;border-top-right-radius:0;border:1px solid #eee}</style></head>
-<body class="bg-gray-100 p-6"><div class="max-w-7xl mx-auto"><div class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm"><h1 class="text-2xl font-bold text-gray-800">مدیریت چکاوک</h1><div class="flex gap-4"><a href="../dashboard.php" target="_blank" class="text-blue-600 hover:underline">اپلیکیشن</a><a href="?logout=1" class="text-red-600 font-bold">خروج</a></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"><div class="bg-blue-500 text-white p-6 rounded-xl shadow"><div class="text-3xl font-bold" id="stat-users">...</div><div>کاربران</div></div><div class="bg-green-500 text-white p-6 rounded-xl shadow"><div class="text-3xl font-bold" id="stat-groups">...</div><div>گروه‌ها</div></div><div class="bg-purple-500 text-white p-6 rounded-xl shadow"><div class="text-3xl font-bold" id="stat-msgs">...</div><div>پیام‌ها</div></div></div><div class="flex gap-2 mb-4"><button id="btn-users" onclick="switchTab('users')" class="tab-btn bg-blue-600 text-white px-6 py-2 rounded-lg shadow">کاربران</button><button id="btn-groups" onclick="switchTab('groups')" class="tab-btn bg-white text-gray-700 px-6 py-2 rounded-lg shadow">گروه‌ها</button><button id="btn-settings" onclick="switchTab('settings')" class="tab-btn bg-white text-gray-700 px-6 py-2 rounded-lg shadow">تنظیمات</button></div>
-<div id="tab-users" class="tab-content bg-white p-6 rounded-xl shadow"><div class="flex justify-between items-center mb-4"><button onclick="openUserModal()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700">+ کاربر جدید</button><button onclick="loadList('users')" class="text-gray-500 hover:text-blue-600">🔄 بروزرسانی</button></div><div class="overflow-x-auto"><table class="w-full text-right text-sm"><thead class="bg-gray-50 border-b"><tr><th class="p-3">ID</th><th class="p-3">نام</th><th class="p-3">یوزرنیم</th><th class="p-3">موبایل</th><th class="p-3">وضعیت</th><th class="p-3">عملیات</th></tr></thead><tbody id="list-users"></tbody></table></div></div>
-<div id="tab-groups" class="tab-content hidden bg-white p-6 rounded-xl shadow"><div class="flex justify-end mb-4"><button onclick="loadList('groups')" class="text-gray-500 hover:text-blue-600">🔄 بروزرسانی</button></div><div class="overflow-x-auto"><table class="w-full text-right text-sm"><thead class="bg-gray-50 border-b"><tr><th class="p-3">ID</th><th class="p-3">نام</th><th class="p-3">نوع</th><th class="p-3">سازنده</th><th class="p-3">وضعیت</th><th class="p-3">عملیات</th></tr></thead><tbody id="list-groups"></tbody></table></div></div>
-<div id="tab-settings" class="tab-content hidden bg-white p-6 rounded-xl shadow"><h3 class="font-bold text-lg mb-4 border-b pb-2">تنظیمات سامانه</h3><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div class="bg-gray-50 p-4 rounded-lg border"><h4 class="font-bold text-blue-600 mb-2">پیامک (IPPanel)</h4><div class="mb-2"><label class="block text-xs text-gray-500">API Key</label><input id="set_ippanel_key" class="w-full border p-2 rounded ltr text-left" type="password"></div><div class="mb-2"><label class="block text-xs text-gray-500">شماره خط</label><input id="set_ippanel_line" class="w-full border p-2 rounded ltr text-left"></div></div><div class="bg-gray-50 p-4 rounded-lg border"><h4 class="font-bold text-red-600 mb-2">امنیتی</h4><div class="flex items-center justify-between mb-4 bg-white p-3 rounded border"><span>2FA (Google Auth)</span><input type="checkbox" id="set_enable_2fa" class="w-5 h-5"></div><div class="flex items-center justify-between bg-white p-3 rounded border"><span>Passkey Login</span><input type="checkbox" id="set_enable_passkey" class="w-5 h-5"></div></div></div><button onclick="saveSettings()" class="mt-6 bg-blue-600 text-white px-6 py-2 rounded shadow hover:bg-blue-700">ذخیره</button></div></div>
-<div id="userModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"><h3 class="font-bold text-lg mb-4" id="uModalTitle">کاربر</h3><input type="hidden" id="uId"><div class="grid grid-cols-2 gap-2 mb-2"><input id="uFname" class="border p-2 rounded" placeholder="نام"><input id="uLname" class="border p-2 rounded" placeholder="فامیل"></div><input id="uUser" class="border p-2 rounded w-full mb-2 text-left" placeholder="Username"><input id="uPhone" class="border p-2 rounded w-full mb-2 text-left" placeholder="Mobile"><input id="uPass" class="border p-2 rounded w-full mb-2 text-left" placeholder="Password"><textarea id="uBio" class="border p-2 rounded w-full mb-2" placeholder="Bio"></textarea><div class="border-t pt-2 mb-4"><div class="grid grid-cols-2 gap-2"><input id="uTele" class="border p-2 rounded text-sm text-left" placeholder="Telegram"><input id="uInsta" class="border p-2 rounded text-sm text-left" placeholder="Instagram"><input id="uWhats" class="border p-2 rounded text-sm text-left" placeholder="WhatsApp"><input id="uLinked" class="border p-2 rounded text-sm text-left" placeholder="LinkedIn"></div></div><div class="flex gap-2"><button onclick="document.getElementById('userModal').classList.add('hidden')" class="flex-1 border p-2 rounded">لغو</button><button onclick="saveUser()" class="flex-1 bg-blue-600 text-white p-2 rounded">ذخیره</button></div></div></div>
-<div id="groupMsgModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-xl w-full max-w-lg h-[600px] flex flex-col"><div class="p-3 border-b flex justify-between font-bold"><span id="gMsgTitle"></span><button onclick="document.getElementById('groupMsgModal').classList.add('hidden')" class="text-red-500">✕</button></div><div id="gMsgList" class="flex-1 overflow-y-auto p-4 bg-gray-100 space-y-2"></div></div></div>
-<div id="dmModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"><div class="bg-white rounded-xl w-full max-w-md h-[500px] flex flex-col shadow-2xl"><div class="p-3 border-b bg-gray-50 flex justify-between items-center rounded-t-xl"><span class="font-bold text-gray-700">چت با: <span id="dmTargetName" class="text-blue-600"></span></span><button onclick="document.getElementById('dmModal').classList.add('hidden')" class="text-red-500 text-xl px-2">✕</button></div><div id="dmHistory" class="flex-1 overflow-y-auto p-4 bg-[#e5ddd5]"></div><div class="p-2 border-t bg-white flex gap-2"><input type="hidden" id="dmTargetId"><input id="dmInput" class="flex-1 border border-gray-300 rounded-full px-4 py-2 outline-none focus:border-blue-500" placeholder="پیام..." autocomplete="off"><button onclick="sendDm()" class="bg-blue-600 text-white p-2 rounded-full w-10 h-10 flex items-center justify-center shadow hover:bg-blue-700">➤</button></div></div></div>
-<script>
-let currentKey=""; function dec(c){try{return CryptoJS.AES.decrypt(c,currentKey).toString(CryptoJS.enc.Utf8)||c}catch(e){return c}} function enc(t){return t?CryptoJS.AES.encrypt(t,currentKey).toString():""}
-document.addEventListener('DOMContentLoaded', () => { loadList('users'); loadSettings(); });
-function switchTab(id){document.querySelectorAll('.tab-content').forEach(e=>e.classList.add('hidden'));document.getElementById('tab-'+id).classList.remove('hidden');document.querySelectorAll('.tab-btn').forEach(e=>{e.classList.replace('bg-blue-600','bg-white');e.classList.replace('text-white','text-gray-700');});document.getElementById('btn-'+id).classList.replace('bg-white','bg-blue-600');document.getElementById('btn-'+id).classList.replace('text-gray-700','text-white');if(id!='settings')loadList(id);}
-function loadList(type){
-    let tb=document.getElementById('list-'+type); tb.innerHTML='<tr><td colspan="6" class="text-center p-4">...</td></tr>';
-    let fd=new FormData(); fd.append('action','admin_get_lists'); fd.append('list_type',type);
-    fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
-        if(d.status=='ok'){
-            document.getElementById('stat-users').innerText=d.stats.users; document.getElementById('stat-groups').innerText=d.stats.groups; document.getElementById('stat-msgs').innerText=d.stats.msgs;
-            let h=''; 
-            if(type=='users') d.list.forEach(u=>{ 
-                // ساخت دکمه وضعیت با AJAX
-                let st = u.is_approved ? '<span class="text-green-600 bg-green-100 px-2 rounded">فعال</span>' : '<span class="text-red-600 bg-red-100 px-2 rounded">مسدود</span>';
-                let btnTxt = u.is_approved ? 'مسدود کردن' : 'آزاد کردن';
-                let btnCls = u.is_approved ? 'text-red-600 border-red-200' : 'text-green-600 border-green-200';
-                
-                h+=`<tr class="border-b hover:bg-gray-50">
-                    <td class="p-3">${u.id}</td><td class="p-3 font-bold">${u.first_name} ${u.last_name}</td><td class="p-3 text-gray-500">@${u.username}</td><td class="p-3 dir-ltr text-right">${u.phone}</td><td class="p-3">${st}</td>
-                    <td class="p-3 flex gap-2">
-                        <button onclick="editUser(${u.id})" class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs">ویرایش</button>
-                        <button onclick="toggleUserStatus(${u.id})" class="border px-2 py-1 rounded text-xs ${btnCls}">${btnTxt}</button>
-                    </td></tr>`; 
-            });
-            else d.list.forEach(g=>{ h+=`<tr class="border-b hover:bg-gray-50"><td class="p-3">${g.id}</td><td class="p-3 font-bold">${g.name}</td><td class="p-3">${g.type}</td><td class="p-3 text-gray-500">${g.first_name}</td><td class="p-3">${g.is_banned?'<span class="text-red-500">مسدود</span>':'فعال'}</td><td class="p-3 flex gap-2 flex-wrap"><button onclick="viewGroupChat(${g.id},'${g.name}')" class="bg-blue-100 text-blue-600 px-2 py-1 rounded text-xs">پیام‌ها</button><button onclick="openChatModal(${g.creator_id},'${g.first_name}')" class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded text-xs">چت</button><button onclick="banGroup(${g.id})" class="${g.is_banned?'bg-red-600 text-white':'bg-gray-200'} px-2 py-1 rounded text-xs">${g.is_banned?'🔓':'🔒'}</button><button onclick="delGroup(${g.id})" class="text-red-500 border border-red-200 px-2 py-1 rounded text-xs">حذف</button></td></tr>`; });
-            tb.innerHTML=h;
-        }
-    });
-}
+<?php 
+require 'config.php'; 
+if (!isset($_SESSION['admin'])) { header("Location: login.php"); exit; }
+if (isset($_GET['logout'])) { session_destroy(); header("Location: login.php"); exit; } 
+?>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت چکاوک</title>
+    <script src="../libs/tailwind.js"></script>
+    <link href="../libs/vazir/font.css" rel="stylesheet">
+    <script src="../libs/crypto-js.js"></script>
+    <style> body { font-family: 'Vazirmatn', sans-serif; } </style>
+</head>
+<body class="bg-gray-100 p-6">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex justify-between items-center mb-8 bg-white p-4 rounded-xl shadow-sm">
+            <h1 class="text-2xl font-bold text-gray-800">مدیریت چکاوک</h1>
+            <div class="flex gap-4">
+                <a href="../dashboard.php" target="_blank" class="text-blue-600 hover:underline">مشاهده سایت</a>
+                <a href="?logout=1" class="text-red-600 font-bold">خروج</a>
+            </div>
+        </div>
 
-// تابع جدید برای تغییر وضعیت کاربر بدون رفرش
-function toggleUserStatus(uid) {
-    let fd = new FormData(); fd.append('action', 'admin_toggle_user'); fd.append('user_id', uid);
-    fetch('../api.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
-        if (d.status == 'ok') loadList('users'); // رفرش لیست
-        else alert('Error');
-    });
-}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-blue-500 text-white p-6 rounded-xl shadow">
+                <div class="text-3xl font-bold" id="stat-users">...</div><div>کاربران</div>
+            </div>
+            <div class="bg-green-500 text-white p-6 rounded-xl shadow">
+                <div class="text-3xl font-bold" id="stat-groups">...</div><div>گروه‌ها</div>
+            </div>
+            <div class="bg-purple-500 text-white p-6 rounded-xl shadow">
+                <div class="text-3xl font-bold" id="stat-msgs">...</div><div>پیام‌ها</div>
+            </div>
+        </div>
 
-function loadSettings(){ let fd=new FormData(); fd.append('action','admin_get_settings'); fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{ if(d.status=='ok'){ document.getElementById('set_ippanel_key').value=d.data.ippanel_key||''; document.getElementById('set_ippanel_line').value=d.data.ippanel_line||''; document.getElementById('set_enable_2fa').checked=(d.data.enable_2fa=='1'); document.getElementById('set_enable_passkey').checked=(d.data.enable_passkey=='1'); } }); }
-function saveSettings(){ let fd=new FormData(); fd.append('action','admin_save_settings'); fd.append('ippanel_key',document.getElementById('set_ippanel_key').value); fd.append('ippanel_line',document.getElementById('set_ippanel_line').value); fd.append('enable_2fa',document.getElementById('set_enable_2fa').checked?'1':'0'); fd.append('enable_passkey',document.getElementById('set_enable_passkey').checked?'1':'0'); fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{ if(d.status=='ok') alert('Saved'); }); }
-function openUserModal(){document.getElementById('uModalTitle').innerText='افزودن کاربر';document.getElementById('uId').value='';['uFname','uLname','uUser','uPhone','uPass','uBio','uTele','uInsta','uWhats','uLinked'].forEach(i=>document.getElementById(i).value='');document.getElementById('userModal').classList.remove('hidden');}
-function editUser(uid){let fd=new FormData();fd.append('action','admin_get_user');fd.append('user_id',uid);fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status=='ok'){document.getElementById('uModalTitle').innerText='ویرایش';document.getElementById('uId').value=d.data.id;document.getElementById('uFname').value=d.data.first_name;document.getElementById('uLname').value=d.data.last_name;document.getElementById('uUser').value=d.data.username;document.getElementById('uPhone').value=d.data.phone;document.getElementById('uBio').value=d.data.bio||'';document.getElementById('uTele').value=d.data.social_telegram||'';document.getElementById('uInsta').value=d.data.social_instagram||'';document.getElementById('uWhats').value=d.data.social_whatsapp||'';document.getElementById('uLinked').value=d.data.social_linkedin||'';document.getElementById('userModal').classList.remove('hidden');}});}
-function saveUser(){let uid=document.getElementById('uId').value;let fd=new FormData();fd.append('action',uid?'admin_edit_user':'admin_add_user');if(uid)fd.append('user_id',uid);fd.append('fname',document.getElementById('uFname').value);fd.append('lname',document.getElementById('uLname').value);fd.append('username',document.getElementById('uUser').value);fd.append('phone',document.getElementById('uPhone').value);fd.append('password',document.getElementById('uPass').value);fd.append('bio',document.getElementById('uBio').value);fd.append('telegram',document.getElementById('uTele').value);fd.append('instagram',document.getElementById('uInsta').value);fd.append('whatsapp',document.getElementById('uWhats').value);fd.append('linkedin',document.getElementById('uLinked').value);fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status=='ok'){alert('OK');document.getElementById('userModal').classList.add('hidden');loadList('users');}else alert(d.msg);});}
-function viewGroupChat(gid,name){document.getElementById('gMsgTitle').innerText=name;document.getElementById('gMsgList').innerHTML='...';document.getElementById('groupMsgModal').classList.remove('hidden');let fd=new FormData();fd.append('action','admin_get_group_msgs');fd.append('group_id',gid);fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!='ok')return;currentKey=d.chat_key;let h='';d.list.forEach(m=>{let txt=dec(m.message);if(m.file_path)txt=`[File] ${txt}`;h+=`<div class="bg-white p-2 rounded mb-2 shadow-sm text-sm"><div class="text-xs text-blue-600 font-bold">${m.first_name}</div><div>${txt}</div><button onclick="delMsg(${m.id})" class="text-red-500 text-xs">Del</button></div>`;});document.getElementById('gMsgList').innerHTML=h||'Empty';});}
-function openChatModal(uid,name){document.getElementById('dmTargetName').innerText=name;document.getElementById('dmTargetId').value=uid;document.getElementById('dmModal').classList.remove('hidden');loadDmHistory(uid);}
-function loadDmHistory(uid){let box=document.getElementById('dmHistory');let fd=new FormData();fd.append('action','admin_get_dm_history');fd.append('target_id',uid);fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status=='ok'){currentKey=d.chat_key;let h='';d.list.forEach(m=>{let isMe=(m.sender_id==1);let cls=isMe?'chat-me':'chat-other';h+=`<div class="chat-bubble ${cls}">${dec(m.message)}<div class="text-[10px] text-gray-500 mt-1">${m.created_at}</div></div>`;});box.innerHTML=h;box.scrollTop=box.scrollHeight;}});}
-function sendDm(){let txt=document.getElementById('dmInput').value;let tid=document.getElementById('dmTargetId').value;if(!txt.trim())return;let fd=new FormData();fd.append('action','admin_send_dm');fd.append('target_id',tid);fd.append('message',enc(txt));fetch('../api.php',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status=='ok'){document.getElementById('dmInput').value='';loadDmHistory(tid);}});}
-function banGroup(gid){let fd=new FormData();fd.append('action','admin_ban_group');fd.append('group_id',gid);fetch('../api.php',{method:'POST',body:fd}).then(()=>{loadList('groups');});}
-function delGroup(gid){if(confirm('Del?')){let fd=new FormData();fd.append('action','admin_delete_group');fd.append('group_id',gid);fetch('../api.php',{method:'POST',body:fd}).then(()=>{loadList('groups');});}}
-function delMsg(mid){if(confirm('Del?')){let fd=new FormData();fd.append('action','admin_delete_msg');fd.append('msg_id',mid);fetch('../api.php',{method:'POST',body:fd}).then(()=>alert('Deleted'));}}
-</script>
-</body></html>
+        <div class="flex flex-wrap gap-2 mb-4 border-b border-gray-300 pb-2">
+            <button onclick="loadSection('users')" class="tab-btn bg-blue-600 text-white px-5 py-2 rounded-lg shadow transition" id="btn-users">👥 کاربران</button>
+            <button onclick="loadSection('groups')" class="tab-btn bg-white text-gray-700 px-5 py-2 rounded-lg shadow transition" id="btn-groups">📢 گروه‌ها</button>
+            
+            <div class="w-px bg-gray-300 mx-2"></div>
+            
+            <button onclick="loadSection('ippanel')" class="tab-btn bg-white text-gray-700 px-5 py-2 rounded-lg shadow transition hover:bg-blue-50" id="btn-ippanel">💬 پیامک</button>
+            <button onclick="loadSection('twofa')" class="tab-btn bg-white text-gray-700 px-5 py-2 rounded-lg shadow transition hover:bg-indigo-50" id="btn-twofa">🛡️ 2FA</button>
+            <button onclick="loadSection('passkey')" class="tab-btn bg-white text-gray-700 px-5 py-2 rounded-lg shadow transition hover:bg-emerald-50" id="btn-passkey">🔑 Passkey</button>
+        </div>
+
+        <div id="content-area" class="bg-white p-6 rounded-xl shadow min-h-[400px]">
+            <div class="text-center text-gray-500 mt-10">در حال بارگذاری...</div>
+        </div>
+    </div>
+
+    <?php include 'sections/modals.php'; ?>
+
+    <script type="module" src="../assets/js/admin.js?v=5"></script>
+</body>
+</html>

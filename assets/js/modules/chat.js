@@ -3,7 +3,7 @@ import { apiCall } from './api.js';
 import { openModal } from './ui.js';
 import { enc } from './encryption.js';
 import { renderChatListItems, renderMessagesHTML } from './renderer.js';
-import { sendReq } from './sender.js'; // *** تغییر مهم: ایمپورت از فایل جدید ***
+import { sendReq } from './sender.js'; // فقط به sender نیاز دارد
 
 // --- لیست چت ---
 export function loadChats() {
@@ -28,6 +28,7 @@ export function filterChats(type) {
     document.getElementById('chatList').innerHTML = html;
 }
 
+// --- چت روم ---
 export function openChat(id, type, name, av) {
     state.currChat = { id, type };
     
@@ -53,11 +54,11 @@ export function loadMsg(forceScroll) {
     if (!state.currChat) return;
     
     apiCall('get_messages', { target_id: state.currChat.id, type: state.currChat.type }).then(d => {
-        state.currentKey = d.chat_key;
+        state.currentKey = d.chat_key; // کلید ذخیره می‌شود
         
         let statusText = (state.currChat.type == 'dm') ? 
-            (d.header.status == 'online' ? 'Online' : d.header.status) : 
-            d.members_count + ' Members';
+            (d.header.status == 'online' ? 'آنلاین' : d.header.status) : 
+            d.members_count + ' عضو';
         document.getElementById('headStatus').innerText = statusText;
 
         let box = document.getElementById('msgBox');
@@ -70,18 +71,18 @@ export function loadMsg(forceScroll) {
     });
 }
 
-// ارسال متن
 export function sendText() {
     let t = document.getElementById('msgInput').value;
     if (!t.trim()) return;
-    
     sendReq(enc(t), null).then(() => {
         document.getElementById('msgInput').value = '';
     });
 }
 
+// کلیک روی هدر (پروفایل یا گروه)
 export function clickHeader() {
     if (state.currChat.type == 'dm') {
+        // جلوگیری از چرخه: استفاده از window
         if(window.showPublicProfile) window.showPublicProfile(state.currChat.id);
     } else {
         apiCall('get_group_details', { group_id: state.currChat.id }).then(d => {
@@ -101,9 +102,10 @@ export function clickHeader() {
             
             let h = '';
             d.members.forEach(m => {
-                let del = (d.is_admin && m.id != MY_ID) ? `<button onclick="removeMember(${m.id})" class="text-red-500 text-xs ml-auto">Remove</button>` : '';
+                // دکمه حذف عضو (از window استفاده می‌کند)
+                let del = (d.is_admin && m.id != MY_ID) ? `<button onclick="removeMember(${m.id})" class="text-red-500 text-xs ml-auto">حذف</button>` : '';
                 h += `<div class="flex items-center p-2 border-b border-[var(--border-color)]">
-                        <img src="${m.avatar}" class="w-8 h-8 rounded-full mr-2"> 
+                        <img src="${m.avatar || 'assets/img/chakavak.png'}" class="w-8 h-8 rounded-full mr-2"> 
                         <span class="text-sm text-[var(--text-primary)]">${m.first_name}</span> 
                         ${del}
                       </div>`;
@@ -114,11 +116,11 @@ export function clickHeader() {
     }
 }
 
-// اتصال به Window
+// اتصال حیاتی به Window
 window.loadChats = loadChats;
 window.filterChats = filterChats;
 window.openChat = openChat;
 window.closeChat = closeChat;
-window.loadMsg = loadMsg; // این خط حیاتی است برای sender.js
+window.loadMsg = loadMsg;
 window.sendText = sendText;
 window.clickHeader = clickHeader;
