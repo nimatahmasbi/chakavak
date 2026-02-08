@@ -3,6 +3,7 @@ import './modules/auth.js';
 import './modules/group.js';
 import './modules/sender.js'; // *** این خط اضافه شود ***
 import './modules/media.js';
+import './modules/security.js'; // *** اضافه شد ***
 import { loadChats, loadMsg, sendText } from './modules/chat.js';
 import { state } from './modules/state.js';
 

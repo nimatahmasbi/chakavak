@@ -1,54 +1,69 @@
-<div id="settingsModal" class="hidden fixed inset-0 bg-[var(--bg-primary)] z-50 flex flex-col">
-    <div class="pt-safe px-4 pb-3 bg-[var(--bg-secondary)] flex justify-between items-center border-b border-[var(--border-color)]">
-        <button onclick="closeModal('settingsModal')" class="text-[var(--accent-color)]" data-t="cancel">Close</button>
-        <span class="font-bold" data-t="nav_settings">Settings</span>
-        <button onclick="saveProfile()" class="text-[var(--accent-color)] font-bold" data-t="save">Save</button>
-    </div>
-
-    <div class="p-4 space-y-4 overflow-y-auto flex-1">
-        <div class="flex items-center gap-4 bg-[var(--bg-secondary)] p-4 rounded-xl">
-            <img src="<?=$me['avatar']=='default'?'assets/img/chakavak.png':$me['avatar']?>" class="w-16 h-16 rounded-full object-cover border border-gray-100">
-            <div>
-                <h2 class="font-bold text-xl text-[var(--text-primary)]"><?=$me['first_name'].' '.$me['last_name']?></h2>
-                <p class="text-[var(--text-secondary)] dir-ltr text-right"><?=$me['phone']?></p>
-                <p class="text-[var(--accent-color)] text-sm">@<?=$me['username']?></p>
-            </div>
+<div id="settingsModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+        <div class="bg-gray-50 p-4 border-b flex justify-between items-center sticky top-0 z-10">
+            <h3 class="font-bold text-gray-800" data-t="settings">تنظیمات</h3>
+            <button onclick="closeModal('settingsModal')" class="text-gray-500 hover:text-red-500 text-2xl leading-none">&times;</button>
         </div>
         
-        <div class="bg-[var(--bg-secondary)] rounded-xl overflow-hidden">
-            <div class="p-3 border-b border-[var(--border-color)] flex justify-between items-center">
-                <span class="flex items-center gap-2">🌙 <span data-t="dark_mode">Dark Mode</span></span>
-                <input type="checkbox" id="themeSwitch" onclick="toggleTheme()" class="w-5 h-5">
-            </div>
-            <div class="p-3 border-b border-[var(--border-color)] flex justify-between items-center">
-                <span class="flex items-center gap-2">🌐 <span data-t="language">Language</span></span>
-                <input type="checkbox" id="langSwitch" onclick="toggleLang()" class="w-5 h-5">
-            </div>
+        <div class="flex border-b">
+            <button onclick="switchSettingsTab('general')" id="tab-btn-general" class="flex-1 py-3 text-sm font-bold text-blue-600 border-b-2 border-blue-600 bg-blue-50">عمومی</button>
+            <button onclick="switchSettingsTab('security')" id="tab-btn-security" class="flex-1 py-3 text-sm font-bold text-gray-500 hover:bg-gray-50">امنیت</button>
+        </div>
+
+        <div class="overflow-y-auto p-4 custom-scrollbar">
             
-            <button onclick="requestNotifyPermission()" class="w-full p-3 flex justify-between items-center text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition">
-                <span class="flex items-center gap-2">🔔 <span data-t="enable_notif">Enable Notifications</span></span>
-                <span id="notifStatus" class="text-xs text-gray-500">Tap to allow</span>
-            </button>
-        </div>
+            <div id="set-tab-general">
+                <button onclick="toggleTheme()" class="w-full p-3 flex justify-between items-center text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition rounded-lg mb-2">
+                    <span class="flex items-center gap-2">🌙 <span data-t="dark_mode">حالت شب</span></span>
+                    <label class="relative inline-flex items-center cursor-pointer pointer-events-none">
+                        <input type="checkbox" id="themeSwitch" class="sr-only peer">
+                        <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </button>
 
-        <div class="space-y-2">
-            <label class="text-xs text-[var(--text-secondary)] px-2">اطلاعات پایه</label>
-            <input id="setFname" value="<?=$me['first_name']?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)]" placeholder="نام">
-            <input id="setLname" value="<?=$me['last_name']?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)]" placeholder="نام خانوادگی">
-            <input id="setUname" value="<?=$me['username']?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)] text-left dir-ltr" placeholder="Username">
-            <textarea id="setBio" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none h-20 text-[var(--text-primary)]" placeholder="بیوگرافی"><?=$me['bio']?></textarea>
-        </div>
+                <button onclick="toggleLang()" class="w-full p-3 flex justify-between items-center text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition rounded-lg mb-2">
+                    <span class="flex items-center gap-2">🌐 <span data-t="language">زبان</span></span>
+                    <span class="text-xs font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded">FA / EN</span>
+                </button>
 
-        <div class="space-y-2 border-t border-[var(--border-color)] pt-4">
-            <label class="text-xs text-[var(--text-secondary)] px-2">شبکه‌های اجتماعی</label>
-            <div class="grid grid-cols-2 gap-2">
-                <input id="setTele" value="<?=$me['social_telegram']??''?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)] text-left dir-ltr" placeholder="Telegram">
-                <input id="setInsta" value="<?=$me['social_instagram']??''?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)] text-left dir-ltr" placeholder="Instagram">
-                <input id="setWhats" value="<?=$me['social_whatsapp']??''?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)] text-left dir-ltr" placeholder="WhatsApp">
-                <input id="setLinked" value="<?=$me['social_linkedin']??''?>" class="w-full bg-[var(--bg-secondary)] p-3 rounded-xl outline-none text-[var(--text-primary)] text-left dir-ltr" placeholder="LinkedIn">
+                <button onclick="requestNotifyPermission()" class="w-full p-3 flex justify-between items-center text-[var(--text-primary)] hover:bg-[var(--bg-primary)] transition rounded-lg mb-2">
+                    <span class="flex items-center gap-2">🔔 <span data-t="notifications">اعلان‌ها</span></span>
+                    <span id="notifStatus" class="text-xs text-gray-400">بررسی...</span>
+                </button>
+                
+                <hr class="my-4 border-gray-200">
+                
+                <button onclick="logout()" class="w-full p-3 text-red-500 font-bold text-center hover:bg-red-50 rounded-lg transition" data-t="log_out">
+                    خروج از حساب
+                </button>
             </div>
-        </div>
 
-        <button onclick="logout()" class="w-full bg-[var(--bg-secondary)] text-red-500 py-3 rounded-xl font-bold mt-4 mb-4" data-t="log_out">Log Out</button>
+            <div id="set-tab-security" class="hidden">
+                <div id="securitySettingsBox">
+                    <div class="text-center text-gray-400 mt-4">در حال بارگذاری...</div>
+                </div>
+            </div>
+
+        </div>
     </div>
 </div>
+
+<script>
+function switchSettingsTab(tab) {
+    document.querySelectorAll('[id^="set-tab-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('set-tab-'+tab).classList.remove('hidden');
+    
+    document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
+        btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+        btn.classList.add('text-gray-500');
+    });
+    
+    const btn = document.getElementById('tab-btn-'+tab);
+    btn.classList.remove('text-gray-500');
+    btn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+
+    if(tab === 'security' && window.loadSecuritySettings) {
+        window.loadSecuritySettings();
+    }
+}
+</script>
