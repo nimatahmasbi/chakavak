@@ -1,15 +1,11 @@
-// آدرس API
 const API_URL = 'api.php';
 
 export async function apiCall(action, data = {}, hasFile = false) {
     let body;
-    
     if (hasFile) {
-        // اگر فرم دیتا از قبل آماده شده است (برای آپلود فایل)
         body = data;
         body.append('act', action);
     } else {
-        // تبدیل داده‌های معمولی به فرم دیتا
         body = new FormData();
         body.append('act', action);
         for (const key in data) {
@@ -23,23 +19,22 @@ export async function apiCall(action, data = {}, hasFile = false) {
             body: body
         });
 
+        // اگر سرور ارور 500 یا 404 داد
         if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
+            console.error(`HTTP Error: ${response.status}`);
+            return { status: 'error', msg: 'Server Error' };
         }
 
-        // تلاش برای پارس کردن جیسون
-        const json = await response.json();
-        return json;
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error("Invalid JSON:", text);
+            return { status: 'error', msg: 'Invalid JSON Response' };
+        }
 
     } catch (error) {
-        console.error("API Error:", error);
-        
-        // نکته مهم: بازگرداندن یک آبجکت خطا به جای پرتاب ارور
-        // این باعث می‌شود برنامه کرش نکند و UI بتواند خطا را نمایش دهد
-        return { 
-            status: 'error', 
-            msg: 'خطا در برقراری ارتباط با سرور (اینترنت خود را چک کنید)',
-            network_error: true 
-        };
+        console.error("Network/API Error:", error);
+        return { status: 'error', msg: 'Connection Failed', network_error: true };
     }
 }

@@ -2,104 +2,96 @@
 if (!defined('MASTER_SECRET')) { require_once __DIR__ . '/../ch-admin/config.php'; }
 header('Content-Type: application/json');
 
-if (!isset($_SESSION['admin'])) {
-    echo json_encode(['status' => 'error', 'msg' => 'Access Denied']);
-    exit;
+if (!isset($_SESSION['admin'])) exit(json_encode(['status'=>'error', 'msg'=>'Admin Auth Required']));
+
+$act = $_POST['act'] ?? '';
+
+// --- دریافت لیست‌ها ---
+if ($act == 'admin_get_lists') {
+    $users = $pdo->query("SELECT * FROM users ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $groups = $pdo->query("SELECT * FROM groups ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
+    $settings = $pdo->query("SELECT * FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+    echo json_encode(['status'=>'ok', 'users'=>$users, 'groups'=>$groups, 'settings'=>$settings]);
 }
 
-$act = $_POST['act'] ?? $_POST['action'] ?? '';
-
-// --------------------------------------------------------------------------
-// 1. تغییر وضعیت کاربر (آزاد/مسدود)
-// --------------------------------------------------------------------------
-if ($act == 'admin_toggle_user') {
+// --- تغییر وضعیت کاربر + پیام سیستمی ---
+elseif ($act == 'admin_toggle_user') {
     $uid = $_POST['user_id'];
+    $state = $_POST['state']; 
     
-    // دریافت وضعیت فعلی
-    $curr = $pdo->prepare("SELECT is_approved, first_name FROM users WHERE id=?");
-    $curr->execute([$uid]);
-    $u = $curr->fetch();
+    $pdo->prepare("UPDATE users SET is_approved=? WHERE id=?")->execute([$state, $uid]);
     
-    if (!$u) { echo json_encode(['status'=>'error']); exit; }
-    
-    $newState = ($u['is_approved'] == 1) ? 0 : 1;
-    
-    // آپدیت وضعیت
-    $pdo->prepare("UPDATE users SET is_approved = ? WHERE id = ?")->execute([$newState, $uid]);
-    
-    // ارسال پیام اطلاع‌رسانی
-    $msg = "";
-    if ($newState == 1) {
-        $msg = "تبریک! حساب کاربری شما توسط مدیریت فعال شد. هم‌اکنون می‌توانید از تمامی امکانات استفاده کنید.";
-    } else {
-        $msg = "توجه: حساب کاربری شما توسط مدیریت مسدود یا محدود شد. در این وضعیت تنها می‌توانید با پشتیبانی در ارتباط باشید.";
-        // اگر مسدود شد، توکن‌ها را پاک کن تا از اپ بیرون بیفتد (اختیاری)
-        // $pdo->prepare("DELETE FROM user_tokens WHERE user_id = ?")->execute([$uid]); 
-    }
-    
-    $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (1, ?, 'dm', ?, NOW())")
-        ->execute([$uid, $msg]);
-    
-    echo json_encode(['status' => 'ok', 'new_state' => $newState]);
+    $msg = ($state == 1) 
+        ? "حساب شما فعال شد. اکنون می‌توانید از تمام امکانات استفاده کنید." 
+        : "حساب شما مسدود شد. دسترسی‌های شما محدود گردید.";
+        
+    $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (1, ?, 'dm', ?, NOW())")->execute([$uid, $msg]);
+    echo json_encode(['status'=>'ok']);
 }
 
-// --------------------------------------------------------------------------
-// 2. دریافت لیست‌ها
-// --------------------------------------------------------------------------
-elseif ($act == 'admin_get_lists') {
-    $type = $_POST['list_type'] ?? 'users';
-    $stats = [
-        'users'  => $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn(),
-        'groups' => $pdo->query("SELECT COUNT(*) FROM groups")->fetchColumn(),
-        'msgs'   => $pdo->query("SELECT COUNT(*) FROM messages")->fetchColumn()
-    ];
-
-    if ($type == 'users') {
-        $list = $pdo->query("SELECT id, username, first_name, last_name, phone, is_approved, created_at FROM users ORDER BY id DESC LIMIT 50")->fetchAll(PDO::FETCH_ASSOC);
-    } else {
-        $list = $pdo->query("SELECT g.id, g.name, g.type, g.is_banned, g.created_at, (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as member_count FROM groups g ORDER BY g.id DESC LIMIT 50")->fetchAll(PDO::FETCH_ASSOC);
-        foreach($list as &$g) { $g['first_name'] = $g['member_count'] . ' عضو'; $g['creator_id']=0; }
-    }
-    echo json_encode(['status' => 'ok', 'list' => $list, 'stats' => $stats]);
-}
-
-// --------------------------------------------------------------------------
-// 3. سایر عملیات ادمین (ویرایش، حذف، تنظیمات)
-// --------------------------------------------------------------------------
-elseif ($act == 'admin_ban_group') {
+// --- دریافت پیام‌های گروه ---
+elseif ($act == 'admin_get_group_msgs') {
     $gid = $_POST['group_id'];
-    $pdo->prepare("UPDATE groups SET is_banned = NOT is_banned WHERE id = ?")->execute([$gid]);
-    echo json_encode(['status' => 'ok']);
+    $stmt = $pdo->prepare("SELECT m.*, u.first_name FROM messages m LEFT JOIN users u ON m.sender_id=u.id WHERE target_id=? AND (type='group' OR type='channel') ORDER BY id DESC LIMIT 50");
+    $stmt->execute([$gid]);
+    echo json_encode(['status'=>'ok', 'list'=>$stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
-elseif ($act == 'admin_get_settings') {
-    $s = $pdo->query("SELECT * FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
-    echo json_encode(['status' => 'ok', 'data' => $s ?: []]);
+
+// --- ارسال پیام به مدیر گروه ---
+elseif ($act == 'admin_send_to_owner') {
+    $gid = $_POST['group_id'];
+    $msg = $_POST['message'];
+    $oid = $pdo->prepare("SELECT user_id FROM group_members WHERE group_id=? AND role='admin' LIMIT 1");
+    $oid->execute([$gid]);
+    $adminId = $oid->fetchColumn();
+    
+    if($adminId) {
+        $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (1, ?, 'dm', ?, NOW())")->execute([$adminId, $msg]);
+        echo json_encode(['status'=>'ok']);
+    } else {
+        echo json_encode(['status'=>'error', 'msg'=>'مدیر یافت نشد']);
+    }
 }
-elseif ($act == 'admin_save_settings') {
-    $stmt = $pdo->prepare("INSERT INTO settings (key_name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)");
-    foreach(['ippanel_key', 'ippanel_line', 'enable_2fa', 'enable_passkey'] as $k) $stmt->execute([$k, $_POST[$k]??'']);
-    echo json_encode(['status' => 'ok']);
+
+// --- دریافت لیست چت‌های کاربر ---
+elseif ($act == 'admin_get_user_chats_list') {
+    $uid = $_POST['user_id'];
+    $sql = "SELECT DISTINCT u.id, u.first_name, u.last_name FROM messages m JOIN users u ON (m.sender_id=u.id OR m.target_id=u.id) WHERE (m.sender_id=? OR m.target_id=?) AND m.type='dm' AND u.id != ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$uid, $uid, $uid]);
+    echo json_encode(['status'=>'ok', 'list'=>$stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
-elseif ($act == 'admin_delete_group') {
-    $g = $_POST['group_id'];
-    $pdo->exec("DELETE FROM groups WHERE id=$g");
-    $pdo->exec("DELETE FROM group_members WHERE group_id=$g");
-    $pdo->exec("DELETE FROM messages WHERE target_id=$g AND type IN ('group','channel')");
-    echo json_encode(['status'=>'ok']);
-}
+
+// --- دریافت چت بین دو نفر ---
 elseif ($act == 'admin_get_dm_history') {
-    // چت با ادمین
-    $tid = $_POST['target_id']; // ID کاربر
-    $msgs = $pdo->prepare("SELECT * FROM messages WHERE (sender_id=1 AND target_id=?) OR (sender_id=? AND target_id=1) ORDER BY created_at ASC");
-    $msgs->execute([$tid, $tid]);
-    echo json_encode(['status'=>'ok', 'list'=>$msgs->fetchAll(PDO::FETCH_ASSOC), 'chat_key'=>'']);
+    $u1 = $_POST['user1'];
+    $u2 = $_POST['user2'];
+    $sql = "SELECT m.*, u.first_name FROM messages m LEFT JOIN users u ON m.sender_id=u.id WHERE type='dm' AND ( (sender_id=? AND target_id=?) OR (sender_id=? AND target_id=?) ) ORDER BY id ASC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$u1, $u2, $u2, $u1]);
+    echo json_encode(['status'=>'ok', 'list'=>$stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
-elseif ($act == 'admin_send_dm') {
-    $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (1, ?, 'dm', ?, NOW())")
-        ->execute([$_POST['target_id'], $_POST['message']]);
+
+// --- ذخیره تنظیمات ---
+elseif ($act == 'admin_save_settings') {
+    $pdo->prepare("UPDATE settings SET value=? WHERE `key`='enable_2fa'")->execute([$_POST['s_2fa']]);
+    $pdo->prepare("UPDATE settings SET value=? WHERE `key`='enable_passkey'")->execute([$_POST['s_pass']]);
     echo json_encode(['status'=>'ok']);
 }
-else {
-    echo json_encode(['status' => 'error', 'msg' => 'Invalid Action']);
+
+// --- حذف گروه ---
+elseif ($act == 'admin_delete_group') {
+    $gid = $_POST['group_id'];
+    $pdo->prepare("DELETE FROM groups WHERE id=?")->execute([$gid]);
+    $pdo->prepare("DELETE FROM group_members WHERE group_id=?")->execute([$gid]);
+    $pdo->prepare("DELETE FROM messages WHERE target_id=? AND (type='group' OR type='channel')")->execute([$gid]);
+    echo json_encode(['status'=>'ok']);
+}
+
+// --- حذف پیام ---
+elseif ($act == 'admin_delete_msg') {
+    $mid = $_POST['msg_id'];
+    $pdo->prepare("DELETE FROM messages WHERE id=?")->execute([$mid]);
+    echo json_encode(['status'=>'ok']);
 }
 ?>

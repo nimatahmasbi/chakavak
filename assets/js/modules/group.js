@@ -1,72 +1,70 @@
-import { state } from './state.js';
 import { apiCall } from './api.js';
-import { openModal, closeModal } from './ui.js';
-import { clickHeader, loadChats } from './chat.js'; 
+import { closeModal } from './ui.js';
+import { loadChats } from './chat.js';
+import { state } from './state.js';
+import { loadContacts } from './auth.js';
 
-// ساخت گروه
+// --- ساخت گروه ---
 export function doCreate() {
-    let name = document.getElementById('createName').value;
-    if(!name || !name.trim()) return alert('نام را وارد کنید');
-
-    apiCall('create_group', { name: name, gtype: state.createType }).then(d => {
-        if (d.status == 'ok') {
-            closeModal('createModal');
-            document.getElementById('createName').value = ''; // پاک کردن فرم
-            loadChats(); // رفرش لیست چت
-        } else {
-            alert(d.msg || 'Error');
-        }
+    const input = document.getElementById('createInput');
+    const name = input ? input.value : '';
+    if (!name.trim()) return alert('نام وارد کنید');
+    apiCall('create_group', { name: name, gtype: state.createType || 'group' }).then(d => {
+        if (d.status === 'ok') { closeModal('createModal'); loadChats(); if(input) input.value=''; } 
+        else alert(d.msg || 'خطا');
     });
 }
 
-// ویرایش گروه
-export function toggleEditGroup() {
-    let box = document.getElementById('editGroupBox');
-    if(box) box.classList.toggle('hidden');
-}
-
+// --- ویرایش گروه ---
 export function saveGroupEdit() {
-    let name = document.getElementById('editGName').value;
-    let file = document.getElementById('editGFile').files[0];
-    
-    let fd = new FormData();
-    fd.append('group_id', state.currChat.id);
-    fd.append('name', name);
+    if (!state.currChat) return;
+    const name = document.getElementById('gInfoNameEdit').value;
+    const file = document.getElementById('gInfoAvatarInput').files[0];
+    const fd = new FormData();
+    fd.append('group_id', state.currChat.id); fd.append('name', name);
     if (file) fd.append('avatar', file);
-
-    apiCall('edit_group', fd, true).then(d => {
-        if (d.status == 'ok') {
-            alert('Saved');
-            clickHeader(); // رفرش اطلاعات هدر
-            toggleEditGroup();
-        } else {
-            alert(d.msg);
-        }
-    });
+    apiCall('edit_group', fd, true).then(d => { if (d.status === 'ok') location.reload(); });
 }
 
-// مدیریت اعضا
-export function addMember() {
-    let target = document.getElementById('addInput').value;
+// --- افزودن عضو (از اینپوت) ---
+export function addMemberFromInput() {
+    if (!state.currChat) return;
+    const input = document.getElementById('addMemberInput');
+    const target = input.value;
+    if (!target.trim()) return alert('نام کاربری یا شماره را وارد کنید');
+
     apiCall('add_group_member', { group_id: state.currChat.id, target: target }).then(d => {
-        if (d.status == 'ok') {
-            clickHeader(); 
-            document.getElementById('addInput').value = '';
+        if(d.status === 'ok') {
+            alert('عضو اضافه شد');
+            input.value = '';
+            if(window.clickHeader) window.clickHeader(); // رفرش
         } else {
-            alert(d.msg || 'User not found');
+            alert(d.msg || 'کاربر یافت نشد');
         }
     });
 }
 
-export function removeMember(uid) {
-    if (confirm('Remove user?')) {
-        apiCall('remove_group_member', { group_id: state.currChat.id, user_id: uid }).then(() => clickHeader());
-    }
+// --- باز کردن لیست مخاطبین برای افزودن ---
+export function openContactPickerForGroup() {
+    // تنظیم فلگ که نشان می‌دهد داریم عضو اضافه می‌کنیم نه چت جدید
+    state.isAddingToGroup = true;
+    
+    // باز کردن مودال مخاطبین
+    if(window.openModal) window.openModal('contactModal');
+    if(window.loadContacts) window.loadContacts();
 }
 
-// --- اتصال به Window ---
+// --- حذف عضو ---
+export function removeMember(uid) {
+    if(!confirm('حذف شود؟')) return;
+    apiCall('remove_group_member', { group_id: state.currChat.id, user_id: uid }).then(d => {
+        if(d.status === 'ok') { if(window.clickHeader) window.clickHeader(); } 
+        else alert(d.msg);
+    });
+}
+
 window.doCreate = doCreate;
-window.toggleEditGroup = toggleEditGroup;
 window.saveGroupEdit = saveGroupEdit;
-window.addMember = addMember;
+window.addMemberFromInput = addMemberFromInput;
+window.openContactPickerForGroup = openContactPickerForGroup;
 window.removeMember = removeMember;

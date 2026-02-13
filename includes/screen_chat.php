@@ -1,71 +1,79 @@
-<div id="screen-chat" class="screen fixed inset-0 bg-[var(--bg-primary)] z-50 hidden transition-transform duration-300">
-    <div class="pt-safe pb-2 px-2 bg-[var(--bg-secondary)] flex items-center shadow border-b border-[var(--border-color)] relative z-20">
-        <button onclick="closeChat()" class="ml-1 text-[var(--accent-color)] flex items-center text-xl p-2 rounded-full hover:bg-[var(--bg-primary)] transition">‹</button>
-        
-        <div class="flex-1 flex flex-col items-start px-2 cursor-pointer" onclick="clickHeader()">
-            <div class="flex items-center gap-2">
-                <img id="headAvatar" class="w-9 h-9 rounded-full bg-gray-300 object-cover border border-[var(--border-color)]">
-                <span class="font-bold text-[var(--text-primary)] text-base truncate" id="headName"></span>
-            </div>
-            <span class="text-xs text-[var(--text-secondary)] px-11 -mt-1" id="headStatus">...</span>
+<div class="h-[60px] bg-white dark:bg-gray-800 shadow-sm flex items-center px-4 justify-between shrink-0 z-20 relative">
+    <div class="flex items-center cursor-pointer" onclick="clickHeader()">
+        <button onclick="event.stopPropagation(); closeChat()" class="md:hidden ml-3 text-gray-500 dark:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+        </button>
+        <img id="headAvatar" src="assets/img/chakavak.png" class="w-10 h-10 rounded-full object-cover border border-gray-100 dark:border-gray-600">
+        <div class="mr-3">
+            <h4 id="headName" class="font-bold text-gray-800 dark:text-white text-sm">...</h4>
+            <span id="headStatus" class="text-xs text-gray-500 dark:text-gray-400">...</span>
         </div>
-        
-        <button id="groupSettingsBtn" onclick="clickHeader()" class="text-[var(--accent-color)] px-2 hidden hover:bg-[var(--bg-primary)] rounded-full p-2 transition">⚙️</button>
+    </div>
+    <div class="flex items-center gap-3">
+        <button id="groupSettingsBtn" onclick="clickHeader()" class="hidden text-gray-500 dark:text-gray-400 hover:text-blue-600 transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+        </button>
+    </div>
+</div>
+
+<div id="stickyPlayer" class="hidden absolute top-[60px] left-0 right-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-2 z-30 shadow-md flex items-center gap-3 animate-slide-down">
+    <button onclick="closeStickyPlayer()" class="text-gray-400 hover:text-red-500 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    
+    <button id="stickyPlayBtn" onclick="toggleStickyPlay()" class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-blue-700 transition">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+    
+    <div class="flex-1 flex flex-col justify-center">
+        <span class="text-xs font-bold text-gray-700 dark:text-gray-200 mb-1">پیام صوتی</span>
+        <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 cursor-pointer relative" onclick="seekAudio(event)">
+            <div id="stickyProgress" class="bg-blue-600 h-1.5 rounded-full w-0 transition-all duration-100"></div>
+        </div>
+    </div>
+    
+    <span id="stickyTime" class="text-[10px] font-mono text-gray-500 w-10 text-center">00:00</span>
+</div>
+<div class="flex-1 relative w-full overflow-hidden bg-[#efe7dd] dark:bg-gray-900">
+    <div class="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none" style="background-image: url('assets/img/chat-bg.png'); background-size: 400px;"></div>
+    <div id="msgBox" class="relative z-10 h-full overflow-y-auto custom-scrollbar p-4 flex flex-col gap-1 pb-4">
+        <div class="text-center text-gray-400 text-sm mt-10">...</div>
+    </div>
+</div>
+
+<div class="bg-white dark:bg-gray-800 p-3 flex items-end gap-2 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] z-20 shrink-0 min-h-[70px] items-center">
+    <button onclick="document.getElementById('attachMenu').style.display='flex'" class="text-gray-500 dark:text-gray-400 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+    </button>
+    
+    <div id="inputArea" class="flex-1 flex items-end gap-2 w-full">
+        <textarea id="msgInput" rows="1" class="flex-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white rounded-2xl px-4 py-3 outline-none resize-none max-h-32 custom-scrollbar transition-all" placeholder="پیام..." dir="auto"></textarea>
+        <button onclick="startRecording()" class="text-gray-500 dark:text-gray-400 p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+        </button>
+        <button onclick="sendText()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transform active:scale-90 transition">
+            <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+        </button>
     </div>
 
-    <div id="chat-bg"></div>
-
-    <div id="msgBox" class="flex-1 overflow-y-auto p-3 scroll-hide" style="padding-bottom:80px;"></div>
-
-    <div class="bg-[var(--bg-secondary)] p-2 flex gap-2 items-end absolute bottom-0 w-full z-30 pb-safe border-t border-[var(--border-color)] transition-all" id="inputArea">
-        <button onclick="document.getElementById('attachMenu').style.display='flex'" class="text-gray-500 p-3 mb-1 transform rotate-45 hover:text-[var(--accent-color)] transition">📎</button>
-        
-        <div id="attachMenu" class="hidden absolute bottom-16 left-2 bg-[var(--bg-secondary)] shadow-xl rounded-xl border border-[var(--border-color)] p-2 flex-col gap-2 z-50 w-40">
-            <button onclick="triggerFile(1)" class="flex items-center gap-3 p-2 hover:bg-[var(--bg-primary)] rounded transition text-sm text-[var(--text-primary)]">
-                <span>🖼️</span> <span data-t="photo">Photo</span>
-            </button>
-            <button onclick="triggerFile(0)" class="flex items-center gap-3 p-2 hover:bg-[var(--bg-primary)] rounded transition text-sm text-[var(--text-primary)]">
-                <span>📁</span> <span data-t="file">File</span>
-            </button>
-            <button onmousedown="startRecord()" onmouseup="stopRecord()" ontouchstart="startRecord()" ontouchend="stopRecord()" class="flex items-center gap-3 p-2 hover:bg-[var(--bg-primary)] rounded transition text-sm text-red-500">
-                <span>🎤</span> <span data-t="voice_rec">Voice</span>
-            </button>
+    <div id="voiceArea" class="hidden flex-1 flex items-center justify-between bg-red-50 dark:bg-red-900/20 rounded-2xl px-4 py-2 border border-red-100 dark:border-red-900/30 w-full">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <span id="voiceTimer" class="font-mono text-red-600 dark:text-red-400 font-bold">00:00</span>
+            <span id="voiceStatus" class="text-xs text-gray-500 dark:text-gray-400 ml-2">درحال ضبط...</span>
         </div>
-
-        <input type="file" id="fileInput" class="hidden" onchange="sendFile()">
-        
-        <textarea id="msgInput" rows="1" class="flex-1 bg-[var(--bg-primary)] rounded-2xl px-4 py-3 outline-none text-[var(--text-primary)] border border-[var(--border-color)] resize-none overflow-hidden scroll-hide" style="min-height:48px; max-height:120px;" data-tp="send_msg" placeholder="Message..."></textarea>
-        
-        <button onclick="sendText()" class="text-[var(--accent-color)] p-3 mb-1 hover:scale-110 transition">➤</button>
-    </div>
-
-    <div id="recordingArea" class="hidden absolute bottom-0 w-full bg-[#1e1e1e] p-2 flex items-center justify-between z-40 pb-safe border-t border-gray-800 h-[80px]">
-        <div class="flex items-center gap-3 pl-4 flex-1">
-            <div class="w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
-            <span id="recordTimer" class="text-white font-mono text-xl font-bold tracking-widest">0:00,00</span>
-        </div>
-
-        <div class="flex items-center gap-2 text-gray-400 text-sm flex-1 justify-center opacity-70">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-            <span data-t="cancel">Slide to cancel</span>
-        </div>
-
-        <div class="flex-1 flex justify-end pr-2">
-            <button onmouseup="stopRecord()" ontouchend="stopRecord()" class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center -mt-6 shadow-xl border-4 border-[#1e1e1e] relative z-50 transform active:scale-95 transition-transform">
-                <svg class="w-8 h-8 text-white animate-bounce" fill="currentColor" viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-            </button>
+        <div class="flex items-center gap-2">
+            <button onclick="cancelRecording()" class="text-gray-400 hover:text-red-500 p-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            <button onclick="pauseRecording()" id="btnPauseVoice" class="text-blue-600 hover:bg-blue-100 p-2 rounded-full font-bold w-8 h-8 flex items-center justify-center">II</button>
+            <button onclick="sendVoice()" class="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700"><svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg></button>
         </div>
     </div>
 </div>
 
-<div id="msgMenu" class="context-menu hidden fixed bg-[var(--bg-secondary)] shadow-xl rounded-xl border border-[var(--border-color)] z-[100] overflow-hidden w-40">
-    <button onclick="doReply()" class="w-full text-left p-3 hover:bg-[var(--bg-primary)] text-sm flex gap-2 text-[var(--text-primary)] transition">
-        <span>↩️</span> Reply
-    </button>
-    <button onclick="copyText()" class="w-full text-left p-3 hover:bg-[var(--bg-primary)] text-sm flex gap-2 text-[var(--text-primary)] transition">
-        <span>📋</span> Copy
-    </button>
-    <button onclick="viewUserProfile()" class="w-full text-left p-3 hover:bg-[var(--bg-primary)] text-sm flex gap-2 text-[var(--text-primary)] border-t border-[var(--border-color)] transition">
-        <span>👤</span> Profile
-    </button>
+<div id="msgMenu" class="hidden fixed bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-100 dark:border-gray-700 z-50 w-40 overflow-hidden py-1">
+    <button onclick="deleteMessage()" class="w-full text-right px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 text-sm flex items-center gap-2"><span>🗑</span> حذف پیام</button>
+    <button onclick="alert('به زودی')" class="w-full text-right px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm flex items-center gap-2"><span>↩️</span> پاسخ</button>
+</div>
+
+<div id="attachMenu" class="hidden absolute bottom-20 right-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-2 flex-col gap-2 z-30">
+    <label class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-gray-700 dark:text-gray-200"><span>📷</span> عکس<input type="file" hidden accept="image/*" onchange="uploadFile(this, 'image')"></label>
+    <label class="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer text-gray-700 dark:text-gray-200"><span>📁</span> فایل<input type="file" hidden onchange="uploadFile(this, 'file')"></label>
 </div>

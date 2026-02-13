@@ -8,5 +8,6 @@ export const state = {
     selectedMsg: null,
     lastMsgId: 0,
     mediaRecorder: null,
-    audioChunks: []
+    audioChunks: [],
+    isAddingToGroup: false // وضعیت جدید برای تشخیص حالت انتخاب مخاطب
 };
