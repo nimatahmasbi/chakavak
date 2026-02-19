@@ -1,157 +1,88 @@
 <?php
-// فایل نصب‌کننده دیتابیس با تمامی جداول اصلی و تنظیمات
-// Database installer file with all main tables and settings
-require_once __DIR__ . '/../ch-admin/db.php';
+// ماژول مدیریت کاربران داشبورد
+// Dashboard User Management Module
+if (!defined('MASTER_SECRET')) { exit; }
 
-try {
-    // ایجاد جدول مدیران سیستم
-    // Create system administrators table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `admins` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `username` varchar(50) NOT NULL,
-      `password` varchar(255) NOT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول تنظیمات پویا
-    // Create dynamic settings table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `settings` (
-        `s_key` varchar(50) PRIMARY KEY,
-        `s_value` text
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول اصلی کاربران با تمام فیلدها
-    // Create main users table with all fields
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `users` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `phone` varchar(20) DEFAULT NULL UNIQUE,
-      `username` varchar(50) DEFAULT NULL UNIQUE,
-      `password` varchar(255) DEFAULT NULL,
-      `first_name` varchar(50) DEFAULT NULL,
-      `last_name` varchar(50) DEFAULT NULL,
-      `bio` text DEFAULT NULL,
-      `avatar` varchar(255) DEFAULT 'default',
-      `status` tinyint(1) DEFAULT 1,
-      `role` varchar(20) DEFAULT 'user',
-      `last_seen` datetime DEFAULT NULL,
-      `is_online` tinyint(1) DEFAULT 0,
-      `created_at` timestamp NULL DEFAULT current_timestamp()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول گروه‌های چت
-    // Create chat groups table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `groups` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `name` varchar(100) NOT NULL,
-      `avatar` varchar(255) DEFAULT 'default',
-      `type` varchar(20) DEFAULT 'group',
-      `owner_id` int(11) NOT NULL,
-      `created_at` timestamp NULL DEFAULT current_timestamp()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول اعضای گروه‌ها
-    // Create group members table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `group_members` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `group_id` int(11) NOT NULL,
-      `user_id` int(11) NOT NULL,
-      `role` varchar(20) DEFAULT 'member',
-      `joined_at` timestamp NULL DEFAULT current_timestamp()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول پیام‌های کاربران و گروه‌ها
-    // Create users and groups messages table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `messages` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `sender_id` int(11) NOT NULL,
-      `target_id` int(11) NOT NULL,
-      `type` varchar(20) NOT NULL,
-      `message` text DEFAULT NULL,
-      `file_path` varchar(255) DEFAULT NULL,
-      `file_type` varchar(50) DEFAULT NULL,
-      `reply_to` int(11) DEFAULT NULL,
-      `is_read` tinyint(1) DEFAULT 0,
-      `created_at` timestamp NULL DEFAULT current_timestamp()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول اشتراک اعلان‌ها (پوش نوتیفیکیشن)
-    // Create push notifications subscriptions table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `push_subscriptions` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `user_id` int(11) NOT NULL,
-      `endpoint` text NOT NULL,
-      `p256dh` varchar(255) NOT NULL,
-      `auth` varchar(255) NOT NULL,
-      `created_at` timestamp NULL DEFAULT current_timestamp()
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول مخاطبین ذخیره شده
-    // Create saved contacts table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `user_contacts` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `owner_id` int(11) NOT NULL,
-      `contact_id` int(11) NOT NULL,
-      `saved_name` varchar(100) DEFAULT NULL,
-      `created_at` timestamp NULL DEFAULT current_timestamp(),
-      UNIQUE KEY `unique_contact` (`owner_id`,`contact_id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ایجاد جدول توکن‌های احراز هویت
-    // Create authentication tokens table
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `user_tokens` (
-      `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      `user_id` int(11) NOT NULL,
-      `token` varchar(255) NOT NULL,
-      `expires_at` datetime NOT NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
-
-    // ثبت مقادیر پیش‌فرض برای تنظیمات
-    // Insert default values for settings
-    $defaultSettings = [
-        ['sms_active', '0'],
-        ['registration_enabled', '1'],
-        ['forgot_password_enabled', '1'],
-        ['security_level', 'high']
-    ];
-    $setStmt = $pdo->prepare("INSERT IGNORE INTO settings (s_key, s_value) VALUES (?, ?)");
-    foreach ($defaultSettings as $setting) { 
-        $setStmt->execute($setting); 
-    }
-
-    // ایجاد حساب کاربری مدیر کل
-    // Create main administrator account
-    $adminUser = 'Mr.NT';
-    $adminPass = password_hash('1020315@', PASSWORD_DEFAULT);
+// پردازش افزودن کاربر جدید
+// Process adding new user
+if (isset($_POST['act']) && $_POST['act'] == 'add_user') {
+    $ph = htmlspecialchars($_POST['phone']);
+    $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $role = $_POST['role'];
+    $uname = $ph; // به صورت پیش‌فرض شماره به عنوان نام کاربری در نظر گرفته می‌شود
     
-    // بررسی و ثبت در جدول ادمین‌ها
-    // Check and insert into admins table
-    $checkAdmin = $pdo->prepare("SELECT id FROM admins WHERE username = ?");
-    $checkAdmin->execute([$adminUser]);
-    if (!$checkAdmin->fetch()) {
-        $stmt = $pdo->prepare("INSERT INTO admins (username, password) VALUES (?, ?)");
-        $stmt->execute([$adminUser, $adminPass]);
+    try {
+        $stmt = $pdo->prepare("INSERT INTO users (phone, username, password, role, status) VALUES (?, ?, ?, ?, 1)");
+        $stmt->execute([$ph, $uname, $pass, $role]);
+        echo "<div style='background: #d4edda; color: #155724; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #c3e6cb;'>✅ کاربر با موفقیت اضافه شد.</div>";
+    } catch (PDOException $e) {
+        echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; margin-bottom: 20px; border-radius: 5px; border: 1px solid #f5c6cb;'>❌ خطا: این شماره قبلاً ثبت شده است.</div>";
     }
-    
-    // بررسی و ثبت ادمین در جدول کاربران برای امکان چت کردن
-    // Check and insert admin into users table for chatting ability
-    $checkUserAdmin = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-    $checkUserAdmin->execute([$adminUser]);
-    if (!$checkUserAdmin->fetch()) {
-        $stmt = $pdo->prepare("INSERT INTO users (username, password, role, status) VALUES (?, ?, 'admin', 1)");
-        $stmt->execute([$adminUser, $adminPass]);
-    }
-
-    // نمایش پیام موفقیت آمیز
-    // Display success message
-    echo "<div style='font-family:tahoma; text-align:center; padding:50px;'>";
-    echo "<h2 style='color:green;'>نصب با موفقیت انجام شد و تمام جداول ساخته شدند</h2>";
-    echo "<h2>Installation Successful and all tables created</h2>";
-    echo "<p>Admin: Mr.NT | Pass: 1020315@</p>";
-    echo "<p style='color:red;'>هشدار: پوشه install را از روی هاست حذف کنید.</p>";
-    echo "</div>";
-
-} catch (PDOException $e) {
-    // نمایش خطای ارتباط با دیتابیس
-    // Display database connection error
-    die("Error in Installation: " . $e->getMessage());
 }
+
+// دریافت لیست تمام کاربران به همراه ادمین‌ها
+// Fetch all users list including admins
+$users = $pdo->query("SELECT * FROM users ORDER BY id DESC")->fetchAll();
 ?>
+
+<div style="padding: 20px; font-family: Tahoma, 'Vazirmatn', sans-serif; direction: rtl; text-align: right;">
+    <h2 style="margin-bottom: 20px; color: #333; font-size: 24px; border-bottom: 2px solid #ddd; padding-bottom: 10px;">مدیریت کاربران و دسترسی‌ها</h2>
+
+    <div style="background: #fdfdfd; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <h3 style="margin-top: 0; color: #555; margin-bottom: 15px;">➕ افزودن کاربر جدید</h3>
+        <form method="POST" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+            <input type="hidden" name="act" value="add_user">
+            
+            <input type="text" name="phone" placeholder="شماره همراه (مثال: 09123456789)" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px; outline: none;">
+            
+            <input type="password" name="password" placeholder="رمز عبور" required style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 200px; outline: none;">
+            
+            <select name="role" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; flex: 1; min-width: 150px; outline: none; background: white;">
+                <option value="user">کاربر عادی</option>
+                <option value="admin">مدیر سیستم (Admin)</option>
+            </select>
+            
+            <button type="submit" style="padding: 10px 25px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; min-width: 120px; transition: 0.3s;">ایجاد کاربر</button>
+        </form>
+    </div>
+
+    <h3 style="color: #555; margin-bottom: 15px;">📋 لیست کاربران سیستم</h3>
+    <div style="overflow-x: auto; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <table style="width: 100%; border-collapse: collapse; text-align: right;">
+            <thead>
+                <tr style="background: #f4f6f8; border-bottom: 2px solid #ddd;">
+                    <th style="padding: 15px; color: #333;">شناسه (ID)</th>
+                    <th style="padding: 15px; color: #333;">شماره همراه</th>
+                    <th style="padding: 15px; color: #333;">نام کاربری</th>
+                    <th style="padding: 15px; color: #333;">نقش (Role)</th>
+                    <th style="padding: 15px; color: #333;">وضعیت</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if(count($users) > 0): ?>
+                    <?php foreach($users as $u): ?>
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 15px; font-weight: bold; color: #666;"><?= $u['id'] ?></td>
+                        <td style="padding: 15px;"><?= htmlspecialchars($u['phone'] ?? '---') ?></td>
+                        <td style="padding: 15px;"><?= htmlspecialchars($u['username'] ?? '---') ?></td>
+                        <td style="padding: 15px;">
+                            <?php if(isset($u['role']) && $u['role'] == 'admin'): ?>
+                                <span style="background: #dc3545; color: white; padding: 5px 10px; border-radius: 12px; font-size: 13px;">مدیر</span>
+                            <?php else: ?>
+                                <span style="background: #6c757d; color: white; padding: 5px 10px; border-radius: 12px; font-size: 13px;">کاربر</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="padding: 15px;">
+                            <?= (isset($u['status']) && $u['status'] == 1) ? '<span style="color: #28a745; font-weight: bold;">فعال</span>' : '<span style="color: #dc3545; font-weight: bold;">مسدود</span>' ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="5" style="padding: 30px; text-align: center; color: #888;">هیچ کاربری در دیتابیس یافت نشد.</td>
+                    </tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
