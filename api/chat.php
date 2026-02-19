@@ -1,42 +1,83 @@
 <?php
+// رابط برنامه‌نویسی گفتگو و پیام‌ها
+// Chat and Messaging API
 if (!defined('MASTER_SECRET')) { require_once __DIR__ . '/../ch-admin/config.php'; }
 header('Content-Type: application/json');
 
-$act|عملیات = $_POST['act'] ?? $_POST['action'] ?? '';
-$uid|شناسه_کاربر = $_SESSION['uid'] ?? 0;
+// بررسی شناسه کاربر
+// Check user ID
+$uid = $_SESSION['uid'] ?? 0; 
+$act = $_POST['act'] ?? ''; 
 
-if (!$uid|شناسه_کاربر) exit(json_encode(['status'=>'error', 'msg'=>'Auth error']));
+if (!$uid) { exit(json_encode(['status'=>'error', 'msg'=>'Unauthorized access'])); }
 
-// --- ارسال پیام (اصلاح شده) ---
-if ($act|عملیات == 'send_message') {
-    $targetId|شناسه_مقصد = $_POST['target_id']; 
-    $chatType|نوع_چت = $_POST['type']; 
-    // فیلتر متن پیام برای جلوگیری از XSS
-    $rawMsg|متن_خام = $_POST['message'] ?? '';
-    $cleanMsg|متن_ایمن = htmlspecialchars($rawMsg|متن_خام, ENT_QUOTES, 'UTF-8');
-    $isImg = $_POST['is_image'] ?? 0;
+// عملیات ارسال پیام
+// Send message operation
+if ($act == 'send_message') {
+    $target = $_POST['target_id']; 
+    $type = $_POST['type']; 
+    
+    // پاکسازی متن برای جلوگیری از حملات
+    // Sanitize text to prevent attacks
+    $msg = htmlspecialchars($_POST['message'] ?? '', ENT_QUOTES, 'UTF-8'); 
+    
+    $filePath = null; 
+    $fileType = 'text';
 
-    $filePath|مسیر_فایل = null;
+    // پردازش فایل پیوست شده
+    // Process attached file
     if (!empty($_FILES['file']['name'])) {
-        $allowedExts|پسوندهای_مجاز = ['jpg', 'jpeg', 'png', 'gif', 'mp3', 'ogg', 'pdf', 'zip'];
-        $fileExt|پسوند_فایل = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
-
-        if (!in_array($fileExt|پسوند_فایل, $allowedExts|پسوندهای_مجاز)) {
-            exit(json_encode(['status'=>'error', 'msg'=>'فرمت فایل مجاز نیست']));
-        }
-
-        $dir = '../uploads/';
-        if (!is_dir($dir)) mkdir($dir, 0777, true);
-        $newFileName|نام_جدید = uniqid() . '_' . time() . '.' . $fileExt|پسوند_فایل;
+        $validExts = ['jpg','png','mp3','pdf','zip','voice'];
+        $ext = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
         
-        if (move_uploaded_file($_FILES['file']['tmp_name'], $dir . $newFileName|نام_جدید)) {
-            $filePath|مسیر_فایل = 'uploads/' . $newFileName|نام_جدید;
+        if (in_array($ext, $validExts)) {
+            $newName = uniqid() . "_$uid." . $ext;
+            if (!is_dir('../uploads')) mkdir('../uploads', 0777, true);
+            
+            // انتقال فایل به پوشه آپلود
+            // Move file to uploads folder
+            if (move_uploaded_file($_FILES['file']['tmp_name'], "../uploads/$newName")) {
+                $filePath = "uploads/$newName";
+                $fileType = in_array($ext, ['jpg','png']) ? 'image' : 'file';
+            }
         }
     }
-    
+
+    // ذخیره پیام در پایگاه داده
+    // Save message to database
     $stmt = $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, file_path, file_type, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->execute([$uid|شناسه_کاربر, $targetId|شناسه_مقصد, $chatType|نوع_چت, $cleanMsg|متن_ایمن, $filePath|مسیر_فایل, ($isImg==1?'image':($isImg==2?'voice':'file'))]);
-    
+    $stmt->execute([$uid, $target, $type, $msg, $filePath, $fileType]);
     echo json_encode(['status'=>'ok']);
+}
+
+// عملیات دریافت تاریخچه پیام‌ها
+// Fetch message history operation
+elseif ($act == 'fetch_history') {
+    $target = $_POST['target_id'];
+    $type = $_POST['type'];
+    
+    if ($type == 'pv') {
+        // دریافت پیام‌های گفتگوی دونفره
+        // Fetch private chat messages
+        $sql = "SELECT * FROM messages WHERE (sender_id=? AND target_id=?) OR (sender_id=? AND target_id=?) ORDER BY created_at ASC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$uid, $target, $target, $uid]);
+    } else {
+        // دریافت پیام‌های گروه
+        // Fetch group messages
+        $sql = "SELECT m.*, u.first_name, u.avatar FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.target_id=? AND m.type='group' ORDER BY m.created_at ASC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$target]);
+    }
+    
+    $msgs = $stmt->fetchAll();
+    
+    // تغییر وضعیت پیام‌ها به خوانده شده
+    // Mark messages as read
+    if ($type == 'pv') {
+        $pdo->prepare("UPDATE messages SET is_read=1 WHERE sender_id=? AND target_id=?")->execute([$target, $uid]);
+    }
+    
+    echo json_encode(['status'=>'ok', 'data'=>$msgs, 'my_id'=>$uid]);
 }
 ?>
