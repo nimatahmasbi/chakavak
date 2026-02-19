@@ -40,7 +40,6 @@ if ($act == 'send_otp') {
 
 // مرحله دوم: بررسی کد و ورود کاربر
 // Step Two: Verify code and login user
-// در فایل api/auth.php
 if ($act == 'verify_otp') {
     $inputCode = $_POST['code'] ?? ''; 
     
@@ -84,4 +83,5 @@ if ($act == 'verify_otp') {
     exit;
 }
 ?>
+
 
