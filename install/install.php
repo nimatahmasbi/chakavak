@@ -41,25 +41,27 @@ try {
         INDEX (target_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
-    // درج تنظیمات پیش‌فرض (مدیریت ثبت‌نام و پیامک)
-    $defaultSettings|تنظیمات = [
+    // Default Settings | تنظیمات پیش‌فرض
+    $defaultSettings = [
         ['sms_active', '0'], // 0: نمایش کد (تست) | 1: ارسال واقعی
         ['registration_enabled', '1'],
         ['forgot_password_enabled', '1'],
         ['security_level', 'high']
     ];
     $setStmt = $pdo->prepare("INSERT IGNORE INTO settings (s_key, s_value) VALUES (?, ?)");
-    foreach ($defaultSettings|تنظیمات as $s|تنظیم) { $setStmt->execute($s|تنظیم); }
+    foreach ($defaultSettings as $setting) { $setStmt->execute($setting); }
 
-    // ایجاد ادمین اصلی: Mr.NT
-    $adminUser|نام_کاربری = 'Mr.NT';
-    $adminPass|رمز_عبور = password_hash('1020315@', PASSWORD_DEFAULT);
+    // Admin Username | نام کاربری
+    $adminUser = 'Mr.NT';
+    // Admin Password | رمز عبور
+    $adminPass = password_hash('1020315@', PASSWORD_DEFAULT);
+    
     $checkAdmin = $pdo->prepare("SELECT id FROM users WHERE username = ?");
-    $checkAdmin->execute([$adminUser|نام_کاربری]);
+    $checkAdmin->execute([$adminUser]);
     
     if (!$checkAdmin->fetch()) {
         $stmt = $pdo->prepare("INSERT INTO users (username, password, role, status) VALUES (?, ?, 'admin', 1)");
-        $stmt->execute([$adminUser|نام_کاربری, $adminPass|رمز_عبور]);
+        $stmt->execute([$adminUser, $adminPass]);
     }
 
     echo "<div style='font-family:tahoma; text-align:center; padding:50px;'>";
@@ -71,3 +73,4 @@ try {
 } catch (PDOException $e) {
     die("Error in Installation | خطا در نصب: " . $e->getMessage());
 }
+?>
