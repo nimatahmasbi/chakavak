@@ -2,13 +2,13 @@
 if (!defined('MASTER_SECRET')) { require_once __DIR__ . '/../ch-admin/config.php'; }
 header('Content-Type: application/json');
 
-$uid = $_SESSION['uid'] ?? 0;
-$act = $_POST['act'] ?? '';
+$uid|شناسه_کاربر = $_SESSION['uid'] ?? 0;
+$act|عملیات = $_POST['act'] ?? '';
 
-// --- خروج کاربر (رفع مشکل کار نکردن دکمه خروج) ---
-if ($act == 'logout') {
-    if ($uid) {
-        $pdo->prepare("DELETE FROM user_tokens WHERE user_id=?")->execute([$uid]);
+// --- خروج کاربر ---
+if ($act|عملیات == 'logout') {
+    if ($uid|شناسه_کاربر) {
+        $pdo->prepare("DELETE FROM user_tokens WHERE user_id=?")->execute([$uid|شناسه_کاربر]);
     }
     session_destroy();
     setcookie('auth_token', '', time() - 3600, '/');
@@ -17,55 +17,40 @@ if ($act == 'logout') {
 }
 
 // --- بررسی وضعیت شماره ---
-elseif ($act == 'check_phone_status') {
-    $ph = $_POST['phone'];
-    if(!$ph) exit(json_encode(['status'=>'error']));
+elseif ($act|عملیات == 'check_phone_status') {
+    $ph|شماره_همراه = $_POST['phone'] ?? '';
+    if(!$ph|شماره_همراه) exit(json_encode(['status'=>'error']));
     
     $stmt = $pdo->prepare("SELECT id FROM users WHERE phone = ?");
-    $stmt->execute([$ph]);
-    $user = $stmt->fetch();
+    $stmt->execute([$ph|شماره_همراه]);
+    $user|کاربر = $stmt->fetch();
     
-    if ($user) {
+    if ($user|کاربر) {
         echo json_encode(['status'=>'exist']);
     } else {
-        $c = rand(10000, 99999); 
-        $_SESSION['otp'] = $c; 
-        $_SESSION['tmp_ph'] = $ph; 
-        echo json_encode(['status'=>'new_user', 'otp_debug'=>$c]); 
-    }
-}
-
-// --- لاگین با رمز عبور ---
-elseif ($act == 'login_password') {
-    $ph = $_POST['phone'];
-    $pass = $_POST['password'];
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE phone = ?");
-    $stmt->execute([$ph]);
-    $user = $stmt->fetch();
-    
-    if ($user && password_verify($pass, $user['password'])) {
-        $_SESSION['uid'] = $user['id'];
-        $t = bin2hex(random_bytes(32));
-        $pdo->prepare("INSERT INTO user_tokens (user_id, token, expires_at) VALUES (?, ?, NOW() + INTERVAL 30 DAY)")->execute([$user['id'], $t]);
-        setcookie('auth_token', $t, time() + 86400 * 30, '/');
-        echo json_encode(['status'=>'ok']);
-    } else {
-        echo json_encode(['status'=>'error', 'msg'=>'رمز عبور اشتباه است']);
+        $otpCode|کد_تایید = rand(10000, 99999); 
+        $_SESSION['otp'] = $otpCode|کد_تایید; 
+        $_SESSION['tmp_ph'] = $ph|شماره_همراه; 
+        // امنیتی: کد OTP نباید در پاسخ JSON برگردانده شود. در محیط واقعی باید پیامک شود.
+        echo json_encode(['status'=>'new_user']); 
     }
 }
 
 // --- ارسال OTP ---
-elseif ($act == 'send_otp') { 
-    $ph = $_POST['phone']; 
-    $c = rand(10000, 99999); 
-    $_SESSION['otp'] = $c; 
-    $_SESSION['tmp_ph'] = $ph; 
-    echo json_encode(['status'=>'success', 'msg'=>$c]); 
+elseif ($act|عملیات == 'send_otp') { 
+    $ph|شماره_همراه = $_POST['phone'] ?? ''; 
+    $otpCode|کد_تایید = rand(10000, 99999); 
+    $_SESSION['otp'] = $otpCode|کد_تایید; 
+    $_SESSION['tmp_ph'] = $ph|شماره_همراه; 
+    // امنیتی: حذف نمایش کد در خروجی
+    echo json_encode(['status'=>'success', 'msg'=>'کد ارسال شد']); 
 }
 
 // --- بررسی OTP ---
-elseif ($act == 'verify_otp') { 
-    if($_POST['code'] != $_SESSION['otp']) exit(json_encode(['status'=>'error', 'msg'=>'کد اشتباه است'])); 
+elseif ($act|عملیات == 'verify_otp') { 
+    $userCode|کد_کاربر = $_POST['code'] ?? '';
+    if($userCode|کد_کاربر != $_SESSION['otp']) exit(json_encode(['status'=>'error', 'msg'=>'کد اشتباه است'])); 
+    
     $u = $pdo->prepare("SELECT * FROM users WHERE phone=?"); 
     $u->execute([$_SESSION['tmp_ph']]); 
     $usr = $u->fetch(); 
@@ -73,76 +58,31 @@ elseif ($act == 'verify_otp') {
     if(!$usr) echo json_encode(['status'=>'register']); 
     else { 
         $_SESSION['uid'] = $usr['id']; 
-        $t = bin2hex(random_bytes(32)); 
-        $pdo->prepare("INSERT INTO user_tokens (user_id, token, expires_at) VALUES (?, ?, NOW() + INTERVAL 30 DAY)")->execute([$usr['id'], $t]); 
-        setcookie('auth_token', $t, time() + 86400 * 30, '/'); 
+        $token|توکن = bin2hex(random_bytes(32)); 
+        $pdo->prepare("INSERT INTO user_tokens (user_id, token, expires_at) VALUES (?, ?, NOW() + INTERVAL 30 DAY)")->execute([$usr['id'], $token|توکن]); 
+        setcookie('auth_token', $token|توکن, time() + 86400 * 30, '/', "", true, true); // Secure & HttpOnly
         echo json_encode(['status'=>'login']); 
     } 
 }
 
-// --- تکمیل ثبت نام + پیام خوش‌آمدگویی ---
-elseif ($act == 'register_complete') { 
-    $d = $_POST;
-    $pdo->prepare("INSERT INTO users (phone, username, first_name, last_name, password, is_approved) VALUES (?, ?, ?, ?, ?, 0)")
-        ->execute([$_SESSION['tmp_ph'], $d['uname'], $d['fname'], $d['lname'], password_hash($d['pass'], PASSWORD_BCRYPT)]); 
+// --- آپدیت پروفایل با فیلتر امنیتی ---
+elseif ($act|عملیات == 'update_profile') {
+    $firstName|نام = htmlspecialchars($_POST['fname']);
+    $lastName|نام_خانوادگی = htmlspecialchars($_POST['lname']);
+    $bio|درباره = htmlspecialchars($_POST['bio']);
     
-    $newUid = $pdo->lastInsertId();
-    $_SESSION['uid'] = $newUid;
-
-    // ارسال پیام سیستمی خوش‌آمدگویی
-    $msg = "به پیام‌رسان چکاوک خوش آمدید. حساب شما در حال بررسی است.";
-    $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (1, ?, 'dm', ?, NOW())")->execute([$newUid, $msg]);
-
-    echo json_encode(['status'=>'ok']); 
-}
-
-// --- جستجوی مخاطب (محدودیت برای کاربر تایید نشده) ---
-elseif ($act == 'search_contact') {
-    if (!$uid) exit(json_encode(['status'=>'error']));
-
-    // بررسی تایید
-    $approved = $pdo->query("SELECT is_approved FROM users WHERE id=$uid")->fetchColumn();
-    if ($approved == 0) {
-        echo json_encode(['status'=>'error', 'msg'=>'حساب شما محدود است. امکان افزودن مخاطب وجود ندارد.']);
-        exit;
-    }
-
-    $q = $_POST['query'];
-    $stmt = $pdo->prepare("SELECT id, first_name, last_name, username, avatar FROM users WHERE (username=? OR phone=?) AND id!=?");
-    $stmt->execute([$q, $q, $uid]); 
-    $u = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if($u){ 
-        $pdo->prepare("INSERT IGNORE INTO user_contacts (owner_id, contact_id) VALUES (?, ?)")->execute([$uid, $u['id']]);
-        echo json_encode(['status'=>'ok', 'user'=>$u]); 
-    } else {
-        echo json_encode(['status'=>'error']);
-    }
-}
-
-// --- دریافت پروفایل ---
-elseif ($act == 'get_user_info') {
-    $tid = $_POST['uid'] ?? $uid;
-    if ($tid == 1) { echo json_encode(['status'=>'ok', 'data'=>['first_name'=>'پشتیبانی', 'last_name'=>'چکاوک', 'username'=>'admin', 'avatar'=>'assets/img/chakavak.png']]); exit; }
-    $stmt = $pdo->prepare("SELECT id, first_name, last_name, username, bio, avatar, social_telegram, social_instagram FROM users WHERE id=?");
-    $stmt->execute([$tid]); echo json_encode(['status'=>'ok', 'data'=>$stmt->fetch(PDO::FETCH_ASSOC)]);
-}
-
-// --- دریافت مخاطبین ---
-elseif ($act == 'get_contacts') {
-    $stmt = $pdo->prepare("SELECT u.id, u.first_name, u.last_name, u.username, u.avatar FROM users u JOIN user_contacts c ON u.id = c.contact_id WHERE c.owner_id = ? ORDER BY u.first_name ASC");
-    $stmt->execute([$uid]); echo json_encode(['status'=>'ok', 'list'=>$stmt->fetchAll(PDO::FETCH_ASSOC)]);
-}
-
-// --- آپدیت پروفایل ---
-elseif ($act == 'update_profile') {
     $sql = "UPDATE users SET first_name=?, last_name=?, bio=?, username=?, social_telegram=?, social_instagram=? WHERE id=?";
-    $params = [$_POST['fname'], $_POST['lname'], $_POST['bio'], $_POST['uname'], $_POST['tele'], $_POST['insta'], $uid];
+    $params = [$firstName|نام, $lastName|نام_خانوادگی, $bio|درباره, $_POST['uname'], $_POST['tele'], $_POST['insta'], $uid|شناسه_کاربر];
+    
     if (!empty($_FILES['avatar']['name'])) {
-        $ext = pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION); 
-        $name = 'u_' . uniqid() . '.' . $ext;
-        if (move_uploaded_file($_FILES['avatar']['tmp_name'], '../uploads/' . $name)) {
-            $pdo->prepare("UPDATE users SET avatar=? WHERE id=?")->execute(['uploads/'.$name, $uid]);
+        $allowed|پسوندهای_مجاز = ['jpg', 'jpeg', 'png', 'webp'];
+        $ext|پسوند = strtolower(pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+        
+        if (in_array($ext|پسوند, $allowed|پسوندهای_مجاز)) {
+            $fileName|نام_فایل = 'u_' . uniqid() . '.' . $ext|پسوند;
+            if (move_uploaded_file($_FILES['avatar']['tmp_name'], '../uploads/' . $fileName|نام_فایل)) {
+                $pdo->prepare("UPDATE users SET avatar=? WHERE id=?")->execute(['uploads/'.$fileName|نام_فایل, $uid|شناسه_کاربر]);
+            }
         }
     }
     $pdo->prepare($sql)->execute($params); 
