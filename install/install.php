@@ -1,7 +1,6 @@
 <?php
-/**
- * English|Persian: Full System Installer | نصب‌کننده کامل سیستم
- */
+//English|Persian: Full System Installer 
+//نصب‌کننده کامل سیستم
 require_once __DIR__ . '/../ch-admin/db.php';
 
 try {
