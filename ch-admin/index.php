@@ -2,10 +2,25 @@
 require_once 'config.php';
 
 // بررسی لاگین بودن ادمین
+// Check if admin is logged in
 if (!isset($_SESSION['admin'])) {
     header("Location: login.php");
     exit;
 }
+
+// --- همگام‌سازی نشست (SSO) برای ورود یکپارچه به پیام‌رسان ---
+// SSO sync to enter chat without re-login
+if (!isset($_SESSION['uid'])) {
+    $adminData = $pdo->query("SELECT id FROM users WHERE role='admin' LIMIT 1")->fetch();
+    if ($adminData) {
+        $_SESSION['uid'] = $adminData['id']; // تنظیم شناسه ادمین برای محیط چت
+    }
+}
+
+// محاسبه پیام‌های خوانده نشده مدیر (برای نمایش در زنگوله)
+// Calculate unread messages for admin bell icon
+$adminChatId = $_SESSION['uid'] ?? 1;
+$unreadCount = $pdo->query("SELECT COUNT(*) FROM messages WHERE target_id=$adminChatId AND is_read=0")->fetchColumn();
 
 // تشخیص صفحه فعلی
 $page = $_GET['page'] ?? 'dashboard';
@@ -25,20 +40,6 @@ $page = $_GET['page'] ?? 'dashboard';
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .active-menu { @apply bg-blue-50 text-blue-600 border-r-4 border-blue-600 font-bold; }
     </style>
-    <?php
-        // محاسبه تعداد پیام‌های خوانده نشده برای ادمین
-        $adminId = $pdo->query("SELECT id FROM users WHERE role='admin' LIMIT 1")->fetchColumn() ?: 1;
-        $unreadCount = $pdo->query("SELECT COUNT(*) FROM messages WHERE target_id=$adminId AND is_read=0")->fetchColumn();
-        ?>
-        
-        <a href="../index.php" target="_blank" style="position: relative; margin-left: 20px; display: inline-block; text-decoration: none; color: #333; font-size: 22px;">
-            🔔
-            <?php if($unreadCount > 0): ?>
-                <span style="position: absolute; top: -5px; right: -10px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; font-family: Tahoma;">
-                    <?= $unreadCount ?>
-                </span>
-    <?php endif; ?>
-</a>
 </head>
 <body class="bg-gray-100 h-screen flex overflow-hidden text-gray-800" data-page="<?php echo $page; ?>">
 
@@ -88,6 +89,16 @@ $page = $_GET['page'] ?? 'dashboard';
             </div>
             <div class="flex items-center gap-4">
                 <div class="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-100"><?php echo date('Y/m/d'); ?></div>
+                
+                <a href="../index.php" target="_blank" class="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-gray-100 transition text-gray-600" title="ورود به پیام‌رسان و مشاهده دایرکت‌ها">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <?php if($unreadCount > 0): ?>
+                        <span class="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full animate-pulse">
+                            <?php echo $unreadCount; ?>
+                        </span>
+                    <?php endif; ?>
+                </a>
+
                 <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200">A</div>
             </div>
         </header>
@@ -127,6 +138,29 @@ $page = $_GET['page'] ?? 'dashboard';
                         </div>
                     </div>
                 </div>
+                
+                <?php
+                if (isset($_POST['act']) && $_POST['act'] == 'send_global_announce') {
+                    $msg = "📢 اعلان مدیریت:\n" . htmlspecialchars($_POST['message'], ENT_QUOTES, 'UTF-8');
+                    $activeUsers = $pdo->query("SELECT id FROM users WHERE status=1")->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    $stmt = $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (?, ?, 'pv', ?, NOW())");
+                    foreach ($activeUsers as $uid) {
+                        $stmt->execute([$adminChatId, $uid, $msg]);
+                    }
+                    echo "<div class='bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-4'>📢 اعلان به تمام کاربران فعال ارسال شد.</div>";
+                }
+                ?>
+                <div class="bg-white p-6 border border-blue-200 rounded-lg shadow-sm border-r-4 border-r-blue-500 mb-8">
+                    <h3 class="mt-0 text-blue-600 font-bold text-lg mb-2">📢 ارسال اعلان همگانی (Broadcasting)</h3>
+                    <p class="text-gray-500 text-sm mb-4">با نوشتن در این کادر، پیام شما به دایرکت تمام کاربرانِ تایید شده ارسال می‌گردد.</p>
+                    <form method="POST" class="flex flex-col sm:flex-row gap-4">
+                        <input type="hidden" name="act" value="send_global_announce">
+                        <textarea name="message" required placeholder="متن اعلان خود را اینجا بنویسید..." class="flex-1 p-3 border border-gray-300 rounded outline-none resize-y min-h-[80px] focus:border-blue-500"></textarea>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded transition h-full sm:h-auto whitespace-nowrap">ارسال به همه</button>
+                    </form>
+                </div>
+
             <?php elseif ($page == 'users'): ?>
                 <?php include 'sections/users.php'; ?>
             <?php elseif ($page == 'groups'): ?>
@@ -158,5 +192,4 @@ $page = $_GET['page'] ?? 'dashboard';
 
     <script type="module" src="../assets/js/admin.js?v=<?php echo time(); ?>"></script>
 </body>
-
 </html>
