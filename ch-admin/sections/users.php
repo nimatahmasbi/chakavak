@@ -1,31 +1,67 @@
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-        <div>
-            <h2 class="font-bold text-gray-800 text-lg">لیست کاربران</h2>
-            <p class="text-xs text-gray-500 mt-1">مدیریت تمام اعضای ثبت نام شده</p>
-        </div>
-        <span class="text-xs font-bold bg-blue-100 text-blue-600 px-3 py-1.5 rounded-full">Users</span>
+<?php
+/**
+ * English|Persian: User & System Management | مدیریت کاربران و سیستم
+ */
+if (!defined('MASTER_SECRET')) { exit; }
+
+// پردازش افزودن کاربر جدید - Process Add User
+if (isset($_POST['act']) && $_POST['act'] == 'add_new_user') {
+    $phone|شماره = htmlspecialchars($_POST['phone']);
+    $username|نام_کاربری = htmlspecialchars($_POST['username']);
+    $role|نقش = $_POST['role'];
+    $password|رمز = password_hash($_POST['password'], PASSWORD_DEFAULT);
+
+    $stmt = $pdo->prepare("INSERT INTO users (phone, username, password, role) VALUES (?, ?, ?)");
+    if ($stmt->execute([$phone|شماره, $username|نام_کاربری, $password|رمز, $role|نقش])) {
+        echo "<div class='alert alert-success'>User Created Successfully | کاربر با موفقیت ساخته شد.</div>";
+    }
+}
+
+// پردازش تنظیمات سیستمی - Process System Settings
+if (isset($_POST['act']) && $_POST['act'] == 'update_settings') {
+    foreach ($_POST['s'] as $key => $value) {
+        $pdo->prepare("UPDATE settings SET s_value = ? WHERE s_key = ?")->execute([$value, $key]);
+    }
+    echo "<div class='alert alert-info'>Settings Updated | تنظیمات بروزرسانی شد.</div>";
+}
+
+// دریافت تنظیمات فعلی
+$settings = $pdo->query("SELECT * FROM settings")->fetchAll(PDO::FETCH_KEY_PAIR);
+?>
+
+<div class="admin-container">
+    <div class="card mb-4">
+        <h3>System Config | تنظیمات سیستمی</h3>
+        <form method="POST">
+            <input type="hidden" name="act" value="update_settings">
+            <label>SMS Status | وضعیت پیامک:</label>
+            <select name="s[sms_active]">
+                <option value="1" <?= $settings['sms_active'] == '1' ? 'selected' : '' ?>>Active (Real Send) | فعال (ارسال واقعی)</option>
+                <option value="0" <?= $settings['sms_active'] == '0' ? 'selected' : '' ?>>Inactive (Show Code) | غیرفعال (نمایش کد)</option>
+            </select>
+            
+            <label>Registration | ثبت‌نام کاربر جدید:</label>
+            <select name="s[registration_enabled]">
+                <option value="1" <?= $settings['registration_enabled'] == '1' ? 'selected' : '' ?>>Enabled | فعال</option>
+                <option value="0" <?= $settings['registration_enabled'] == '0' ? 'selected' : '' ?>>Disabled | غیرفعال</option>
+            </select>
+
+            <button type="submit" class="btn-save">Save Settings | ذخیره تنظیمات</button>
+        </form>
     </div>
 
-    <div class="overflow-x-auto">
-        <table class="w-full text-right border-collapse">
-            <thead class="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase font-semibold">
-                <tr>
-                    <th class="p-4 w-16 text-center">ID</th>
-                    <th class="p-4">مشخصات کاربر</th>
-                    <th class="p-4">شماره تماس</th>
-                    <th class="p-4 text-center">وضعیت</th>
-                    <th class="p-4 text-center">عملیات</th>
-                </tr>
-            </thead>
-            <tbody id="usersTable" class="divide-y divide-gray-100 text-sm text-gray-700 bg-white">
-                <tr>
-                    <td colspan="5" class="p-8 text-center text-gray-400 flex flex-col items-center justify-center gap-2">
-                        <div class="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-                        <span>درحال دریافت اطلاعات کاربران...</span>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="card">
+        <h3>Add User | افزودن کاربر جدید</h3>
+        <form method="POST">
+            <input type="hidden" name="act" value="add_new_user">
+            <input type="text" name="phone" placeholder="Phone | شماره همراه" required>
+            <input type="text" name="username" placeholder="Username | نام کاربری" required>
+            <input type="password" name="password" placeholder="Password | رمز عبور" required>
+            <select name="role">
+                <option value="user">User | کاربر عادی</option>
+                <option value="admin">Admin | مدیر</option>
+            </select>
+            <button type="submit" class="btn-add">Create User | ایجاد کاربر</button>
+        </form>
     </div>
 </div>
