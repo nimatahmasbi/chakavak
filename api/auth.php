@@ -40,37 +40,48 @@ if ($act == 'send_otp') {
 
 // مرحله دوم: بررسی کد و ورود کاربر
 // Step Two: Verify code and login user
+// در فایل api/auth.php
 if ($act == 'verify_otp') {
     $inputCode = $_POST['code'] ?? ''; 
     
     if (isset($_SESSION['otp']) && $inputCode == $_SESSION['otp']) {
-        // جستجوی کاربر در پایگاه داده
-        // Search user in database
         $stmt = $pdo->prepare("SELECT * FROM users WHERE phone = ?");
         $stmt->execute([$_SESSION['tmp_phone']]);
         $user = $stmt->fetch();
 
         if ($user) {
-            // جلوگیری از ورود کاربران مسدود شده
-            // Prevent blocked users from logging in
-            if ($user['status'] == 0) { exit(json_encode(['status' => 'error', 'msg' => 'Account is banned'])); }
-            
+            if ($user['status'] == 0) { exit(json_encode(['status' => 'error', 'msg' => 'حساب شما مسدود یا در انتظار تایید مدیر است.'])); }
             $_SESSION['uid'] = $user['id'];
             echo json_encode(['status' => 'success', 'target' => 'dashboard']);
         } else {
-            // بررسی وضعیت فعال بودن ثبت‌نام
-            // Check if registration is enabled
+            // ثبت‌نام کاربر جدید
             if (isset($settings['registration_enabled']) && $settings['registration_enabled'] == '1') {
+                
+                // بررسی تنظیمات: آیا باید پیش‌فرض مسدود باشد؟
+                $requireApproval = isset($settings['require_admin_approval']) && $settings['require_admin_approval'] == '1';
+                $initialStatus = $requireApproval ? 0 : 1;
+
+                $stmt = $pdo->prepare("INSERT INTO users (phone, username, status) VALUES (?, ?, ?)");
+                $stmt->execute([$_SESSION['tmp_phone'], $_SESSION['tmp_phone'], $initialStatus]);
+                $newUserId = $pdo->lastInsertId();
+                
+                // ارسال پیام دایرکت خوش‌آمدگویی از طرف ادمین
+                if ($requireApproval && !empty($settings['welcome_message'])) {
+                    $adminId = $pdo->query("SELECT id FROM users WHERE role='admin' LIMIT 1")->fetchColumn() ?: 1;
+                    $pdo->prepare("INSERT INTO messages (sender_id, target_id, type, message, created_at) VALUES (?, ?, 'pv', ?, NOW())")
+                        ->execute([$adminId, $newUserId, $settings['welcome_message']]);
+                }
+
+                $_SESSION['uid'] = $newUserId;
                 echo json_encode(['status' => 'success', 'target' => 'complete_profile']);
             } else {
-                echo json_encode(['status' => 'error', 'msg' => 'Registration is disabled']);
+                echo json_encode(['status' => 'error', 'msg' => 'ثبت‌نام غیرفعال است.']);
             }
         }
     } else {
-        // خطای کد نامعتبر
-        // Invalid code error
-        echo json_encode(['status' => 'error', 'msg' => 'Invalid OTP Code']);
+        echo json_encode(['status' => 'error', 'msg' => 'کد نامعتبر است.']);
     }
     exit;
 }
 ?>
+
