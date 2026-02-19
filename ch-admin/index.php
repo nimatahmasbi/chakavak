@@ -25,6 +25,20 @@ $page = $_GET['page'] ?? 'dashboard';
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
         .active-menu { @apply bg-blue-50 text-blue-600 border-r-4 border-blue-600 font-bold; }
     </style>
+    <?php
+        // محاسبه تعداد پیام‌های خوانده نشده برای ادمین
+        $adminId = $pdo->query("SELECT id FROM users WHERE role='admin' LIMIT 1")->fetchColumn() ?: 1;
+        $unreadCount = $pdo->query("SELECT COUNT(*) FROM messages WHERE target_id=$adminId AND is_read=0")->fetchColumn();
+        ?>
+        
+        <a href="../index.php" target="_blank" style="position: relative; margin-left: 20px; display: inline-block; text-decoration: none; color: #333; font-size: 22px;">
+            🔔
+            <?php if($unreadCount > 0): ?>
+                <span style="position: absolute; top: -5px; right: -10px; background: #dc3545; color: white; font-size: 11px; font-weight: bold; padding: 2px 6px; border-radius: 50%; font-family: Tahoma;">
+                    <?= $unreadCount ?>
+                </span>
+    <?php endif; ?>
+</a>
 </head>
 <body class="bg-gray-100 h-screen flex overflow-hidden text-gray-800" data-page="<?php echo $page; ?>">
 
@@ -144,4 +158,5 @@ $page = $_GET['page'] ?? 'dashboard';
 
     <script type="module" src="../assets/js/admin.js?v=<?php echo time(); ?>"></script>
 </body>
+
 </html>
