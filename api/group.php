@@ -8,7 +8,6 @@ if (!$uid) exit(json_encode(['status'=>'error']));
 
 // --- ساخت گروه ---
 if ($act == 'create_group') {
-    // چک کردن تایید
     $approved = $pdo->query("SELECT is_approved FROM users WHERE id=$uid")->fetchColumn();
     if ($approved == 0) {
         echo json_encode(['status'=>'error', 'msg'=>'حساب شما محدود است.']);
@@ -19,7 +18,7 @@ if ($act == 'create_group') {
     $type = $_POST['gtype'] ?? 'group';
     if (empty($name)) exit(json_encode(['status'=>'error', 'msg'=>'نام خالی است']));
 
-    $stmt = $pdo->prepare("INSERT INTO groups (name, type, created_at) VALUES (?, ?, NOW())");
+    $stmt = $pdo->prepare("INSERT INTO groups (name, type, created_at, is_deleted) VALUES (?, ?, NOW(), 0)");
     $stmt->execute([$name, $type]);
     $gid = $pdo->lastInsertId();
     
@@ -35,10 +34,10 @@ if ($act == 'create_group') {
 // --- اطلاعات گروه ---
 elseif ($act == 'get_group_details') {
     $gid = $_POST['group_id'];
-    $g = $pdo->prepare("SELECT * FROM groups WHERE id=?");
+    $g = $pdo->prepare("SELECT * FROM groups WHERE id=? AND is_deleted=0");
     $g->execute([$gid]);
     $group = $g->fetch(PDO::FETCH_ASSOC);
-    if (!$group) exit(json_encode(['status'=>'error']));
+    if (!$group) exit(json_encode(['status'=>'error', 'msg'=>'گروه یافت نشد یا حذف شده است']));
     
     $me = $pdo->prepare("SELECT role FROM group_members WHERE group_id=? AND user_id=?");
     $me->execute([$gid, $uid]);
@@ -55,12 +54,29 @@ elseif ($act == 'get_group_details') {
     ]);
 }
 
+// --- حذف گروه (Soft Delete) ---
+elseif ($act == 'soft_delete_group') {
+    $gid = $_POST['group_id'];
+    
+    // بررسی اینکه آیا کاربر مدیر گروه است؟
+    $check = $pdo->prepare("SELECT role FROM group_members WHERE group_id=? AND user_id=?");
+    $check->execute([$gid, $uid]);
+    $role = $check->fetchColumn();
+    
+    if ($role == 'admin') {
+        // به جای حذف کامل، فقط پرچم حذف را ۱ می‌کنیم
+        $pdo->prepare("UPDATE groups SET is_deleted=1 WHERE id=?")->execute([$gid]);
+        echo json_encode(['status'=>'ok']);
+    } else {
+        echo json_encode(['status'=>'error', 'msg'=>'فقط مدیر گروه می‌تواند گروه را حذف کند']);
+    }
+}
+
 // --- افزودن عضو ---
 elseif ($act == 'add_group_member') {
     $gid = $_POST['group_id'];
     $target = $_POST['target'];
     
-    // اگر ورودی عدد باشد (آی‌دی یا شماره)
     if(is_numeric($target)) {
         $u = $pdo->prepare("SELECT id FROM users WHERE phone=? OR id=?");
         $u->execute([$target, $target]);
@@ -78,7 +94,7 @@ elseif ($act == 'add_group_member') {
     }
 }
 
-// --- حذف عضو ---
+// --- حذف عضو / ترک گروه ---
 elseif ($act == 'remove_group_member') {
     $gid = $_POST['group_id'];
     $tid = $_POST['user_id'];
@@ -111,7 +127,6 @@ elseif ($act == 'edit_group') {
             $params = [$name, 'uploads/'.$fname, $gid];
         }
     }
-    
     $pdo->prepare($sql)->execute($params);
     echo json_encode(['status'=>'ok']);
 }

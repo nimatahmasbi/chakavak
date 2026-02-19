@@ -35,8 +35,12 @@
             </div>
 
             <h4 class="text-xs font-bold text-gray-400 uppercase mb-2">اعضای گروه</h4>
-            <div id="gMembersList" class="space-y-1">
+            <div id="gMembersList" class="space-y-1 mb-4">
                 </div>
+            
+            <button id="btnDeleteGroup" onclick="deleteCurrentChat()" class="hidden w-full py-3 text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 rounded-xl text-sm font-bold mt-4 transition border border-red-100 dark:border-red-900">
+                🗑 حذف کامل گروه
+            </button>
         </div>
     </div>
 </div>

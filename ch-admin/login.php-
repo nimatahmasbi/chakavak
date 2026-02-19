@@ -1,0 +1,7 @@
+<?php require 'config.php'; if(isset($_SESSION['admin'])) header("Location: index.php");
+if($_SERVER['REQUEST_METHOD']=='POST'){
+    $u=$_POST['u'];$p=$_POST['p']; $s=$pdo->prepare("SELECT * FROM admins WHERE username=?"); $s->execute([$u]); $a=$s->fetch();
+    if($a && password_verify($p,$a['password'])){ session_regenerate_id(true); $_SESSION['admin']=$a['id']; header("Location: index.php"); exit; }
+} ?>
+<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Login</title><script src="../libs/tailwind.js"></script><link href="../libs/vazir/vazirmatn.css" rel="stylesheet"><style>body{font-family:'Vazirmatn';background:#f0f2f5;display:flex;align-items:center;justify-content:center;height:100vh}</style></head>
+<body><div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-sm"><h1 class="text-center text-xl font-bold mb-6">Login</h1><form method="POST"><input name="u" class="w-full border p-3 rounded mb-4 dir-ltr" placeholder="Username" required><input type="password" name="p" class="w-full border p-3 rounded mb-6 dir-ltr" placeholder="Password" required><button class="w-full bg-blue-600 text-white p-3 rounded font-bold">Login</button></form><a href="../index.php" class="block text-center mt-4 text-sm text-gray-500">Back</a></div></body></html>

@@ -18,20 +18,18 @@
 
 <div id="stickyPlayer" class="hidden absolute top-[60px] left-0 right-0 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 p-2 z-30 shadow-md flex items-center gap-3 animate-slide-down">
     <button onclick="closeStickyPlayer()" class="text-gray-400 hover:text-red-500 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-    
     <button id="stickyPlayBtn" onclick="toggleStickyPlay()" class="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-md hover:bg-blue-700 transition">
         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
     </button>
-    
     <div class="flex-1 flex flex-col justify-center">
         <span class="text-xs font-bold text-gray-700 dark:text-gray-200 mb-1">پیام صوتی</span>
         <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5 cursor-pointer relative" onclick="seekAudio(event)">
             <div id="stickyProgress" class="bg-blue-600 h-1.5 rounded-full w-0 transition-all duration-100"></div>
         </div>
     </div>
-    
     <span id="stickyTime" class="text-[10px] font-mono text-gray-500 w-10 text-center">00:00</span>
 </div>
+
 <div class="flex-1 relative w-full overflow-hidden bg-[#efe7dd] dark:bg-gray-900">
     <div class="absolute inset-0 opacity-10 dark:opacity-5 pointer-events-none" style="background-image: url('assets/img/chat-bg.png'); background-size: 400px;"></div>
     <div id="msgBox" class="relative z-10 h-full overflow-y-auto custom-scrollbar p-4 flex flex-col gap-1 pb-4">
@@ -70,7 +68,6 @@
 
 <div id="msgMenu" class="hidden fixed bg-white dark:bg-gray-800 shadow-xl rounded-lg border border-gray-100 dark:border-gray-700 z-50 w-40 overflow-hidden py-1">
     <button onclick="deleteMessage()" class="w-full text-right px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-red-500 text-sm flex items-center gap-2"><span>🗑</span> حذف پیام</button>
-    <button onclick="alert('به زودی')" class="w-full text-right px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm flex items-center gap-2"><span>↩️</span> پاسخ</button>
 </div>
 
 <div id="attachMenu" class="hidden absolute bottom-20 right-4 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 p-2 flex-col gap-2 z-30">
