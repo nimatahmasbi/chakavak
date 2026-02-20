@@ -9,9 +9,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Chakavak">
     
-    <link rel="apple-touch-icon" sizes="180x180" href="assets/img/chakavak.png?v=3">
-    <link rel="icon" type="image/png" href="assets/img/chakavak.png?v=3">
-    
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/img/icon.png">
+    <link rel="apple-touch-icon" href="assets/img/icon.png">  
     <title>Chakavak</title>
     <link rel="manifest" href="assets/json/manifest.json?v=2">
     
