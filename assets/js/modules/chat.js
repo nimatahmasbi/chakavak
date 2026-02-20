@@ -9,15 +9,9 @@ import { showPublicProfile } from './auth.js';
 // --- دریافت و نمایش لیست چت‌ها ---
 export function loadChats() {
     apiCall('get_chats_list').then(d => {
-        // بررسی اعتبار پاسخ
-        if (!d || d.status !== 'ok') {
-            console.error('Chat Load Error:', d);
-            return;
-        }
+        if (!d || d.status !== 'ok') return;
         
-        state.chatListCache = d.list;
-        
-        // رفرش لیست بر اساس تب فعال
+        state.chatListCache = d.list || [];
         let activeEl = document.querySelector('.active-tab');
         filterChats(activeEl ? activeEl.id.replace('tab-', '') : 'all');
     });
@@ -25,7 +19,6 @@ export function loadChats() {
 
 // --- فیلتر کردن تب‌ها ---
 export function filterChats(type) {
-    // تغییر استایل دکمه‌ها
     document.querySelectorAll('.tab-btn').forEach(b => { 
         b.classList.remove('active-tab', 'text-blue-600', 'border-blue-600'); 
         b.classList.add('text-gray-500', 'dark:text-gray-400', 'border-transparent'); 
@@ -48,7 +41,6 @@ export function filterChats(type) {
 export function openChat(id, type, name, av) {
     state.currChat = { id, type };
     
-    // آپدیت هدر
     const hName = document.getElementById('headName');
     const hAv = document.getElementById('headAvatar');
     const hStatus = document.getElementById('headStatus');
@@ -57,25 +49,21 @@ export function openChat(id, type, name, av) {
     if(hAv) hAv.src = av;
     if(hStatus) hStatus.innerText = 'درحال اتصال...';
     
-    // دکمه تنظیمات
     let setBtn = document.getElementById('groupSettingsBtn');
     if(setBtn) {
         if (type != 'dm') setBtn.classList.remove('hidden'); 
         else setBtn.classList.add('hidden');
     }
 
-    // مدیریت نمایش (موبایل/دسکتاپ)
     const sidebar = document.getElementById('sidebar');
     const screenMain = document.getElementById('screen-main');
     const screenChat = document.getElementById('screen-chat');
     
-    // اگر موبایل است، سایدبار را مخفی کن
     if (window.innerWidth < 768 && sidebar) {
         sidebar.classList.add('hidden');
         sidebar.classList.remove('flex');
     }
     
-    // نمایش صفحه چت
     if (screenMain) screenMain.classList.add('hidden');
     if (screenChat) {
         screenChat.classList.remove('hidden');
@@ -94,7 +82,6 @@ export function closeChat() {
     const screenChat = document.getElementById('screen-chat');
     
     if (window.innerWidth < 768) {
-        // موبایل: نمایش لیست
         if (sidebar) {
             sidebar.classList.remove('hidden');
             sidebar.classList.add('flex');
@@ -104,7 +91,6 @@ export function closeChat() {
             screenChat.classList.remove('flex');
         }
     } else {
-        // دسکتاپ: نمایش صفحه خالی
         if (screenChat) screenChat.classList.add('hidden');
         if (screenMain) screenMain.classList.remove('hidden');
     }
@@ -112,7 +98,7 @@ export function closeChat() {
     loadChats();
 }
 
-// --- دریافت پیام‌ها ---
+// --- دریافت پیام‌ها (اصلاح مشکل JSON و forEach) ---
 export function loadMsg(forceScroll) {
     if (!state.currChat) return;
     
@@ -122,17 +108,18 @@ export function loadMsg(forceScroll) {
         state.currentKey = d.chat_key;
         
         let statusText = (state.currChat.type == 'dm') ? 
-            (d.header.status == 'online' ? 'آنلاین' : '') : 
-            d.members_count + ' عضو';
+            (d.header && d.header.status == 'online' ? 'آنلاین' : '') : 
+            (d.members_count ? d.members_count + ' عضو' : '');
             
         const hStat = document.getElementById('headStatus');
         if(hStat) hStat.innerText = statusText;
 
         let box = document.getElementById('msgBox');
         if(box) {
-            // دریافت ID کاربر فعلی از متغیر گلوبال
-            let myId = (typeof MY_ID !== 'undefined' ? MY_ID : 0);
-            let html = renderMessagesHTML(d.list, myId); 
+            let myId = d.my_id || (typeof MY_ID !== 'undefined' ? MY_ID : 0);
+            
+            // رفع خطای forEach با استفاده از d.data به جای d.list
+            let html = renderMessagesHTML(d.data || [], myId); 
             
             if (box.innerHTML.length != html.length) { 
                 box.innerHTML = html;
@@ -222,7 +209,6 @@ export function deleteMessage() {
     });
 }
 
-// اتصال توابع
 window.loadChats = loadChats;
 window.filterChats = filterChats;
 window.openChat = openChat;
