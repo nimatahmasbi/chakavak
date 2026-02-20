@@ -173,6 +173,19 @@ export function startDirect(uid, name, av) {
     if(window.openChat) window.openChat(uid, 'dm', name, av);
 }
 
+// --- خروج از حساب کاربری (اضافه شده) ---
+export function doLogout() {
+    if(confirm('آیا مطمئن هستید که می‌خواهید خارج شوید؟')) {
+        apiCall('logout').then(res => {
+            if(res && res.status === 'ok') {
+                location.reload(); // هدایت به صفحه لاگین
+            } else {
+                alert('خطا در خروج از حساب');
+            }
+        });
+    }
+}
+
 // توابع کمکی
 function getValue(id) { return document.getElementById(id) ? document.getElementById(id).value : ''; }
 function setValue(id, val) { if(document.getElementById(id)) document.getElementById(id).value = val || ''; }
@@ -196,3 +209,4 @@ window.saveMyProfile = saveMyProfile;
 window.loadMyProfile = loadMyProfile;
 window.showPublicProfile = showPublicProfile;
 window.startChatFromProfile = startChatFromProfile;
+window.doLogout = doLogout; // اضافه شدن تابع خروج به آبجکت گلوبال
