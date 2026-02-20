@@ -1,35 +1,53 @@
 <?php
-// ماژول جامع گفتگو (دریافت لیست، تاریخچه و ارسال پیام)
-// Comprehensive Chat Module (Fetch List, History, and Send)
+// ماژول جامع چت و گفتگو (حل مشکل JSON)
+// Comprehensive Chat Module (JSON Fix)
 if (!defined('MASTER_SECRET')) { require_once __DIR__ . '/../ch-admin/config.php'; }
 header('Content-Type: application/json');
 
 $uid = $_SESSION['uid'] ?? 0; 
-// پشتیبانی همزمان از دو نام متغیر اکشن
 $act = $_POST['act'] ?? $_POST['action'] ?? ''; 
 
-if (!$uid) { exit(json_encode(['status'=>'error', 'msg'=>'Unauthorized access'])); }
+if (!$uid) { exit(json_encode(['status'=>'error', 'msg'=>'Unauthorized'])); }
 
-// --- ۱. دریافت لیست گفتگوها (نمایش در سایدبار) ---
-// 1. Fetch Chats List (For Sidebar)
+// --- ۱. دریافت لیست گفتگوها برای سایدبار ---
+// 1. Fetch Chats List for Sidebar
 if ($act == 'get_chats_list') {
-    $sql = "SELECT DISTINCT u.id, u.first_name, u.last_name, u.username, u.avatar, u.status 
-            FROM users u 
-            JOIN messages m ON (u.id = m.sender_id OR u.id = m.target_id)
-            WHERE (m.sender_id = ? OR m.target_id = ?) AND u.id != ?";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$uid, $uid, $uid]);
-    echo json_encode(['status'=>'ok', 'list'=>$stmt->fetchAll()]);
+    // دریافت دایرکت‌ها (pv)
+    $sqlPV = "SELECT u.id, u.first_name as name, u.avatar, 'dm' as type,
+              (SELECT message FROM messages WHERE (sender_id=$uid AND target_id=u.id) OR (sender_id=u.id AND target_id=$uid) ORDER BY id DESC LIMIT 1) as last_msg,
+              (SELECT COUNT(id) FROM messages WHERE sender_id=u.id AND target_id=$uid AND is_read=0) as unread
+              FROM users u 
+              JOIN messages m ON (u.id = m.sender_id OR u.id = m.target_id)
+              WHERE (m.sender_id = $uid OR m.target_id = $uid) AND u.id != $uid
+              GROUP BY u.id";
+              
+    // دریافت گروه‌ها
+    $sqlGroup = "SELECT g.id, g.name, g.avatar, 'group' as type,
+                 (SELECT message FROM messages WHERE target_id=g.id AND type='group' ORDER BY id DESC LIMIT 1) as last_msg,
+                 0 as unread
+                 FROM groups g
+                 JOIN group_members gm ON g.id = gm.group_id
+                 WHERE gm.user_id = $uid";
+                 
+    try {
+        $pvList = $pdo->query($sqlPV)->fetchAll(PDO::FETCH_ASSOC);
+        $groupList = $pdo->query($sqlGroup)->fetchAll(PDO::FETCH_ASSOC);
+        
+        $list = array_merge($pvList, $groupList);
+        echo json_encode(['status'=>'ok', 'list'=>$list]);
+    } catch (Exception $e) {
+        echo json_encode(['status'=>'error', 'msg'=>'Database error']);
+    }
     exit;
 }
 
-// --- ۲. دریافت تاریخچه پیام‌ها در یک چت مشخص ---
-// 2. Fetch Message History for a specific chat
+// --- ۲. دریافت پیام‌های یک گفتگوی خاص ---
+// 2. Fetch specific chat messages
 elseif ($act == 'fetch_history' || $act == 'get_messages') {
     $target = $_POST['target_id'] ?? 0;
     $type = $_POST['type'] ?? 'pv';
     
-    if ($type == 'pv') {
+    if ($type == 'pv' || $type == 'dm') {
         $sql = "SELECT * FROM messages WHERE (sender_id=? AND target_id=?) OR (sender_id=? AND target_id=?) ORDER BY created_at ASC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$uid, $target, $target, $uid]);
@@ -41,8 +59,8 @@ elseif ($act == 'fetch_history' || $act == 'get_messages') {
     
     $msgs = $stmt->fetchAll();
     
-    // تیک خوانده شدن پیام‌ها
-    if ($type == 'pv' && $target > 0) {
+    // تیک دوم پیام‌ها (خوانده شده)
+    if (($type == 'pv' || $type == 'dm') && $target > 0) {
         $pdo->prepare("UPDATE messages SET is_read=1 WHERE sender_id=? AND target_id=?")->execute([$target, $uid]);
     }
     
@@ -50,8 +68,8 @@ elseif ($act == 'fetch_history' || $act == 'get_messages') {
     exit;
 }
 
-// --- ۳. عملیات ارسال پیام ---
-// 3. Send Message Operation
+// --- ۳. ارسال پیام ---
+// 3. Send a new message
 elseif ($act == 'send_message') {
     $target = $_POST['target_id'] ?? 0; 
     $type = $_POST['type'] ?? 'pv'; 
@@ -63,7 +81,6 @@ elseif ($act == 'send_message') {
     if (!empty($_FILES['file']['name'])) {
         $validExts = ['jpg','png','mp3','pdf','zip','voice'];
         $ext = strtolower(pathinfo($_FILES['file']['name'], PATHINFO_EXTENSION));
-        
         if (in_array($ext, $validExts)) {
             $newName = uniqid() . "_$uid." . $ext;
             if (!is_dir('../uploads')) mkdir('../uploads', 0777, true);
@@ -80,10 +97,9 @@ elseif ($act == 'send_message') {
     exit;
 }
 
-// --- در صورتی که اکشن نامعتبر بود ---
-// Invalid action fallback
+// اگر هیچ اکشنی مچ نشد
 else {
-    echo json_encode(['status'=>'error', 'msg'=>'Action not handled in chat module']);
+    echo json_encode(['status'=>'error', 'msg'=>'Action not found in chat api']);
     exit;
 }
 ?>
