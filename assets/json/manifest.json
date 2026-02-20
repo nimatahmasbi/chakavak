@@ -1,7 +1,7 @@
 {
   "name": "Chakavak Messenger",
   "short_name": "Chakavak Messenger",
-  "start_url": "../../icon.php",
+  "start_url": "../img/icon.php",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
@@ -13,7 +13,7 @@
       "type": "image/png"
     },
     {
-      "src": "../img/chakavak.png",
+      "src": "../img/icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }

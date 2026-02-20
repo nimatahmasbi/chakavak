@@ -1,4 +1,3 @@
-
 <?php
 // پیکربندی پایگاه داده
 // Database Configuration

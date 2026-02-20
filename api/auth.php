@@ -83,5 +83,3 @@ if ($act == 'verify_otp') {
     exit;
 }
 ?>
-
-
